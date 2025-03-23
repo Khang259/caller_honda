@@ -1,0 +1,58 @@
+{
+  "name": "thadosoftcaller.client",
+  "private": true,
+  "version": "0.0.1",
+  "description": "ThadoSoftCaller - A desktop application for managing grid systems",
+  "author": "Your Name <your.email@example.com>",
+  "type": "module",
+  "main": "main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "package": "vite build && electron-builder --win --x64 --publish never"
+  },
+  "dependencies": {
+    "bootstrap": "^5.3.3",
+    "react": "^18.2.0",
+    "react-bootstrap": "^2.8.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.9.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.0",
+    "vite": "^4.0.0",
+    "electron": "25.0.0",
+    "concurrently": "^8.0.0",
+    "wait-on": "^7.0.0",
+    "electron-builder": "^25.1.8",
+    "mkdirp": "^3.0.1",
+    "copyfiles": "^2.4.1"
+  },
+  "build": {
+    "appId": "com.thadosoft.caller",
+    "productName": "ThadoSoftCaller",
+    "win": {
+      "target": "nsis",
+      "icon": "grid-system/frontend/public/favicon.ico"
+    },
+    "files": [
+      "dist/**/*",
+      "grid-system/backend/**/*",
+      "main.cjs",
+      "preload.js"
+    ],
+    "extraResources": [
+      {
+        "from": "grid-system/backend/",
+        "to": "backend/",
+        "filter": [ "**/*" ]
+      }
+    ],
+    "directories": {
+      "buildResources": "grid-system/frontend/public",
+      "output": "dist"
+    }
+  }
+}

@@ -1,0 +1,2 @@
+C:\THADOSOFT\THADOSOFT Windows\THADOSOFTCALLER\thadosoftcaller.client\obj\Debug\thadosoftcaller.client.esproj.CoreCompileInputs.cache
+C:\Users\admin\Downloads\Telegram Desktop\THADOSOFTCALLER (3)\THADOSOFTCALLER\thadosoftcaller.client\obj\Debug\thadosoftcaller.client.esproj.CoreCompileInputs.cache

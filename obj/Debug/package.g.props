@@ -1,0 +1,51 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <PropertyGroup>
+    <PackageJsonName Condition="$(PackageJsonName) == ''">thadosoftcaller.client</PackageJsonName>
+    <PackageJsonPrivate Condition="$(PackageJsonPrivate) == ''">true</PackageJsonPrivate>
+    <PackageJsonVersion Condition="$(PackageJsonVersion) == ''">0.0.1</PackageJsonVersion>
+    <PackageJsonDescription Condition="$(PackageJsonDescription) == ''">ThadoSoftCaller - A desktop application for managing grid systems</PackageJsonDescription>
+    <PackageJsonAuthor Condition="$(PackageJsonAuthor) == ''">Your Name &lt;your.email@example.com&gt;</PackageJsonAuthor>
+    <PackageJsonType Condition="$(PackageJsonType) == ''">module</PackageJsonType>
+    <PackageJsonMain Condition="$(PackageJsonMain) == ''">main.cjs</PackageJsonMain>
+    <PackageJsonScriptsDev Condition="$(PackageJsonScriptsDev) == ''">vite</PackageJsonScriptsDev>
+    <PackageJsonScriptsBuild Condition="$(PackageJsonScriptsBuild) == ''">vite build</PackageJsonScriptsBuild>
+    <PackageJsonScriptsPreview Condition="$(PackageJsonScriptsPreview) == ''">vite preview</PackageJsonScriptsPreview>
+    <PackageJsonScriptsElectron Condition="$(PackageJsonScriptsElectron) == ''">concurrently "npm run dev" "wait-on http://localhost:5173 &amp;&amp; electron ."</PackageJsonScriptsElectron>
+    <PackageJsonScriptsPackage Condition="$(PackageJsonScriptsPackage) == ''">vite build &amp;&amp; electron-builder --win --x64 --publish never</PackageJsonScriptsPackage>
+    <PackageJsonDependenciesBootstrap Condition="$(PackageJsonDependenciesBootstrap) == ''">^5.3.3</PackageJsonDependenciesBootstrap>
+    <PackageJsonDependenciesReact Condition="$(PackageJsonDependenciesReact) == ''">^18.2.0</PackageJsonDependenciesReact>
+    <PackageJsonDependenciesReactBootstrap Condition="$(PackageJsonDependenciesReactBootstrap) == ''">^2.8.0</PackageJsonDependenciesReactBootstrap>
+    <PackageJsonDependenciesReactDom Condition="$(PackageJsonDependenciesReactDom) == ''">^18.2.0</PackageJsonDependenciesReactDom>
+    <PackageJsonDependenciesReactRouterDom Condition="$(PackageJsonDependenciesReactRouterDom) == ''">^6.9.0</PackageJsonDependenciesReactRouterDom>
+    <PackageJsonDevdependenciesVitejsPluginReact Condition="$(PackageJsonDevdependenciesVitejsPluginReact) == ''">^4.3.0</PackageJsonDevdependenciesVitejsPluginReact>
+    <PackageJsonDevdependenciesVite Condition="$(PackageJsonDevdependenciesVite) == ''">^4.0.0</PackageJsonDevdependenciesVite>
+    <PackageJsonDevdependenciesElectron Condition="$(PackageJsonDevdependenciesElectron) == ''">25.0.0</PackageJsonDevdependenciesElectron>
+    <PackageJsonDevdependenciesConcurrently Condition="$(PackageJsonDevdependenciesConcurrently) == ''">^8.0.0</PackageJsonDevdependenciesConcurrently>
+    <PackageJsonDevdependenciesWaitOn Condition="$(PackageJsonDevdependenciesWaitOn) == ''">^7.0.0</PackageJsonDevdependenciesWaitOn>
+    <PackageJsonDevdependenciesElectronBuilder Condition="$(PackageJsonDevdependenciesElectronBuilder) == ''">^25.1.8</PackageJsonDevdependenciesElectronBuilder>
+    <PackageJsonDevdependenciesMkdirp Condition="$(PackageJsonDevdependenciesMkdirp) == ''">^3.0.1</PackageJsonDevdependenciesMkdirp>
+    <PackageJsonDevdependenciesCopyfiles Condition="$(PackageJsonDevdependenciesCopyfiles) == ''">^2.4.1</PackageJsonDevdependenciesCopyfiles>
+    <PackageJsonBuildAppid Condition="$(PackageJsonBuildAppid) == ''">com.thadosoft.caller</PackageJsonBuildAppid>
+    <PackageJsonBuildProductname Condition="$(PackageJsonBuildProductname) == ''">ThadoSoftCaller</PackageJsonBuildProductname>
+    <PackageJsonBuildWinTarget Condition="$(PackageJsonBuildWinTarget) == ''">nsis</PackageJsonBuildWinTarget>
+    <PackageJsonBuildWinIcon Condition="$(PackageJsonBuildWinIcon) == ''">grid-system/frontend/public/favicon.ico</PackageJsonBuildWinIcon>
+    <PackageJsonBuildFiles Condition="$(PackageJsonBuildFiles) == ''">[
+  "dist/**/*",
+  "grid-system/backend/**/*",
+  "main.cjs",
+  "preload.js"
+]</PackageJsonBuildFiles>
+    <PackageJsonBuildExtraresources Condition="$(PackageJsonBuildExtraresources) == ''">[
+  {
+    "from": "grid-system/backend/",
+    "to": "backend/",
+    "filter": [
+      "**/*"
+    ]
+  }
+]</PackageJsonBuildExtraresources>
+    <PackageJsonBuildDirectoriesBuildresources Condition="$(PackageJsonBuildDirectoriesBuildresources) == ''">grid-system/frontend/public</PackageJsonBuildDirectoriesBuildresources>
+    <PackageJsonBuildDirectoriesOutput Condition="$(PackageJsonBuildDirectoriesOutput) == ''">dist</PackageJsonBuildDirectoriesOutput>
+  </PropertyGroup>
+</Project>

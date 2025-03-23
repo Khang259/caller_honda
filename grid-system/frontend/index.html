@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quản lý khu vực</title>
+    <!-- Bootstrap CSS cục bộ -->
+    <link href="./css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons cục bộ -->
+    <link rel="stylesheet" href="./css/bootstrap-icons.css">
+    <!-- Tùy chỉnh CSS -->
+    <style>
+        html, body, #root {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: none;
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .card {
+            border-radius: 0;
+            margin-bottom: 20px;
+        }
+
+        .grid-cell {
+            height: 80px;
+            margin: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 18px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="./src/main.jsx"></script>
+</body>
+</html>
