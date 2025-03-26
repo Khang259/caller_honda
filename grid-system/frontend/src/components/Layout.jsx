@@ -20,8 +20,9 @@ const Layout = ({ children }) => {
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav">
                         <Nav className="me-auto">
-                            <Nav.Link as={Link} to="/khu4" className="mx-1">Khu 4</Nav.Link>
-                            <Nav.Link as={Link} to="/khu5" className="mx-1">Khu 5</Nav.Link>
+                            <Nav.Link as={Link} to="/SupplyAndDemand" className="mx-1">Cấp & Trả hàng</Nav.Link>
+                            <Nav.Link as={Link} to="/Supply" className="mx-1">Cấp hàng</Nav.Link>
+                            <Nav.Link as={Link} to="/Demand" className="mx-1">Trả hàng</Nav.Link>
                             <Nav.Link as={Link} to="/history" className="mx-1">Lịch sử</Nav.Link>
                             {currentUser && isAdmin() && (
                                 <Nav.Link as={Link} to="/settings" className="mx-1">Cài đặt</Nav.Link>

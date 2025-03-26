@@ -23,7 +23,7 @@ connected_clients: List[WebSocket] = []
 def load_data():
     global grid_history
     if os.path.exists(DATA_FILE):
-        try:
+        try:    
             with open(DATA_FILE, "r", encoding="utf-8") as f:
                 grid_history = json.load(f)
             if not isinstance(grid_history, list):
@@ -36,7 +36,7 @@ def load_data():
     else:
         grid_history = []
 
-def save_data():
+def save_data():    
     global grid_history
     if isinstance(grid_history, list):
         with open(DATA_FILE, "w", encoding="utf-8") as f:

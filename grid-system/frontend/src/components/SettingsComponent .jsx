@@ -6,10 +6,12 @@ const SettingsComponent = () => {
     const {
         inputServerIP,
         setInputServerIP,
-        khu4Config,
-        setKhu4Config,
-        khu5Config,
-        setKhu5Config,
+        SupplyAndDemandConfig,
+        setSupplyAndDemandConfig,
+        SupplyConfig,
+        setSupplyConfig,
+        DemandConfig,
+        setDemandConfig,
         activeKhu,
         switchKhu,
         handleSaveConfig,
@@ -54,17 +56,23 @@ const SettingsComponent = () => {
                             <Form.Label><strong>Khu vực hoạt động</strong></Form.Label>
                             <div className="d-flex">
                                 <Button
-                                    variant={activeKhu === 'khu4' ? 'primary' : 'outline-primary'}
+                                    variant={activeKhu === 'SupplyAndDemand' ? 'primary' : 'outline-primary'}
                                     className="me-2"
-                                    onClick={() => switchKhu('khu4')}
+                                    onClick={() => switchKhu('SupplyAndDemand')}
                                 >
-                                    KHU 4
+                                    CẤP&TRẢ HÀNG
                                 </Button>
                                 <Button
-                                    variant={activeKhu === 'khu5' ? 'success' : 'outline-success'}
-                                    onClick={() => switchKhu('khu5')}
+                                    variant={activeKhu === 'Supply' ? 'success' : 'outline-success'}
+                                    onClick={() => switchKhu('Supply')}
                                 >
-                                    KHU 5
+                                    CẤP HÀNG
+                                </Button>
+                                <Button
+                                    variant={activeKhu === 'Demand' ? 'success' : 'outline-success'}
+                                    onClick={() => switchKhu('Demand')}
+                                >
+                                    TRẢ HÀNG
                                 </Button>
                             </div>
                         </div>

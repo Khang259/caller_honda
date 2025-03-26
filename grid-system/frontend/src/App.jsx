@@ -3,8 +3,6 @@ import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Settings from './components/Settings';
 import HistoryComponent from './components/HistoryComponent';
-import Khu4Component from './pages/Khu4Component';
-import Khu5Component from './pages/Khu5Component';
 import Login from './components/Login';
 import { PrivateRoute, AdminRoute } from './components/PrivateRoute';
 import AllKhuDisplay from './components/AllKhuDisplay';
@@ -13,6 +11,9 @@ import { SettingsProvider } from "./contexts/SettingsContext";
 import { HistoryProvider } from './contexts/HistoryContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
+import SupplyAndDemandComponent from './pages/SupplyAndDemandComponent';
+import SupplyComponent from './pages/SupplyComponent';
+import DemandComponent from './pages/DemandComponent'
 
 function App() {
     return (
@@ -29,15 +30,21 @@ function App() {
                                 </Layout>
                             } />
 
-                            <Route path="/khu4" element={
+                            <Route path="/SupplyAndDemand" element={
                                 <Layout>
-                                    <Khu4Component />
+                                    <SupplyAndDemandComponent />
                                 </Layout>
                             } />
 
-                            <Route path="/khu5" element={
+                            <Route path="/Supply" element={
                                 <Layout>
-                                    <Khu5Component />
+                                    <SupplyComponent />
+                                </Layout>
+                            } />
+
+                            <Route path="/Demand" element={
+                                <Layout>
+                                    <DemandComponent />
                                 </Layout>
                             } />
 

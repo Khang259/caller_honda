@@ -1,15 +1,16 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Card, Modal, Button, Form } from 'react-bootstrap';
-//import { useSettings } from '../contexts/SettingsComponent';
 import { useHistory } from '../contexts/HistoryContext';
 import { useAuth } from '../contexts/AuthContext';
-import { sendData, defaultServers, checkServerConnection } from '../services/api.js';
+import { sendData, defaultServers } from '../services/api.js';
 import { useSettings } from "../contexts/SettingsContext";
 
 const GridDisplay = ({ gridData }) => {
     const { currentUser, isAdmin } = useAuth();
-    const { serverIPs, khu4Config, khu5Config, activeKhu } = useSettings();
-    const currentKhu = activeKhu || 'khu4';
+    const { serverIPs, SupplyAndDemandConfig, SupplyConfig, DemandConfig, activeKhu } = useSettings();
+    // Đảm bảo currentKhu luôn là một giá trị hợp lệ
+    const validKhus = ['SupplyAndDemand', 'Supply', 'Demand'];
+    const currentKhu = validKhus.includes(activeKhu) ? activeKhu : 'SupplyAndDemand';
     const { addHistory } = useHistory();
 
     const [cellStates, setCellStates] = useState({});
@@ -17,11 +18,61 @@ const GridDisplay = ({ gridData }) => {
     const [showModal, setShowModal] = useState(false);
     const [selectedCell, setSelectedCell] = useState(null);
     const [sendResult, setSendResult] = useState({ success: false, message: '' });
-    const [cellData, setCellData] = useState({});
+    const [taskData, setTaskData] = useState([]); // State để lưu dữ liệu từ file JSON
+    const [loading, setLoading] = useState(true); // State để kiểm tra trạng thái load file JSON
+    const [error, setError] = useState(null); // State để lưu lỗi nếu load file JSON thất bại
 
-    const config = currentKhu === 'khu4' ? khu4Config : khu5Config;
+    // Sửa cú pháp chọn config
+    const config = currentKhu === 'SupplyAndDemand' ? SupplyAndDemandConfig : 
+                   currentKhu === 'Supply' ? SupplyConfig : DemandConfig;
+
+    // Object mapping cho khu vực
+    const khuMap = {
+        'SupplyAndDemand': 'CẤP&TRẢ HÀNG',
+        'Supply': 'CẤP HÀNG',
+        'Demand': 'TRẢ HÀNG'
+    };
+
+    // Tải dữ liệu từ file JSON tương ứng dựa trên currentKhu
+    useEffect(() => {
+        const fetchTaskData = async () => {
+            setLoading(true); // Bắt đầu load
+            setError(null); // Reset lỗi
+
+            let jsonFile;
+            if (currentKhu === 'SupplyAndDemand') {
+                jsonFile = '/task_path_supply_demand.json';
+            } else if (currentKhu === 'Supply') {
+                jsonFile = '/task_path_supply.json';
+            } else if (currentKhu === 'Demand') {
+                jsonFile = '/task_path_demand.json';
+            }
+
+            try {
+                const response = await fetch(jsonFile);
+                if (!response.ok) {
+                    throw new Error(`Không thể tải file JSON: ${response.statusText}`);
+                }
+                const data = await response.json();
+                if (!Array.isArray(data)) {
+                    throw new Error('Dữ liệu từ file JSON không phải là một mảng');
+                }
+                setTaskData(data);
+                console.log(`✅ Dữ liệu từ ${jsonFile}:`, data);
+            } catch (error) {
+                console.error(`❌ Lỗi khi tải dữ liệu từ ${jsonFile}:`, error.message);
+                setError(error.message);
+                setTaskData([]);
+            } finally {
+                setLoading(false); // Kết thúc load
+            }
+        };
+
+        fetchTaskData();
+    }, [currentKhu]); // Gọi lại khi currentKhu thay đổi
 
     const handleCellClick = (cellNumber) => {
+        console.log(`🖱️ Ô được chọn: cell-${cellNumber}`); // Log khi chọn ô
         setSelectedCell(cellNumber);
         setShowModal(true);
     };
@@ -32,57 +83,43 @@ const GridDisplay = ({ gridData }) => {
     };
 
     const handleSendSignal = async () => {
-        if (isSending) return;
-    
+        console.log('🚀 Bắt đầu gửi tín hiệu...'); // Log khi nhấn nút "Gửi tín hiệu"
+        console.log('📍 Ô được chọn:', selectedCell);
+        console.log('📊 Dữ liệu taskData:', taskData);
+
+        if (isSending) {
+            console.log('⏳ Đang gửi, bỏ qua...');
+            return;
+        }
+
         try {
             setIsSending(true);
-    
-            const savedData = localStorage.getItem("khu4GridData");
-            let parsedGridData = savedData ? JSON.parse(savedData) : [];
-    
-            if (!Array.isArray(parsedGridData) || parsedGridData.length === 0) {
-                throw new Error("Dữ liệu trong localStorage trống hoặc không hợp lệ.");
+            console.log('🔍 Tìm dữ liệu cho ô:', `cell-${selectedCell}`);
+
+            // Tìm dữ liệu tương ứng với ô được chọn từ taskData
+            const selectedData = taskData.find(item => item.cell === `cell-${selectedCell}`);
+            console.log('📦 Dữ liệu tìm thấy:', selectedData);
+
+            if (!selectedData) {
+                throw new Error(`Không tìm thấy dữ liệu cho ô ${selectedCell} trong file JSON`);
             }
-    
-            const rows = parsedGridData.length;
-            const columns = parsedGridData[0].length;
-    
-            const rowIndex = Math.floor((selectedCell - 1) / columns);
-            const colIndex = (selectedCell - 1) % columns;
-    
-            if (rowIndex >= rows || colIndex >= columns) {
-                throw new Error("Vị trí ô không hợp lệ trong gridData.");
-            }
-    
-            const selectedData = parsedGridData[rowIndex][colIndex];
-            let jsonString = selectedData?.value || '{}';
-    
-            let jsonData;
-            try {
-                jsonData = JSON.parse(jsonString);
-            } catch (error) {
-                throw new Error("Dữ liệu không phải JSON hợp lệ.");
-            }
-    
+
+            // Lấy giá trị của "value" từ object trong file JSON
+            const jsonData = selectedData.value;
+            console.log('📋 Dữ liệu JSON từ file:', jsonData);
+
             const orderCount = parseInt(localStorage.getItem("orderCount") || "1", 10);
-            const newOrderId = `thado_${orderCount}`;
+            const newOrderId = `thadosoft_${orderCount}`;
             localStorage.setItem("orderCount", orderCount + 1);
-    
+            console.log('🆔 Order ID mới:', newOrderId);
+
+            // Sử dụng trực tiếp giá trị "value" từ file JSON và thêm orderId
             const reorderedData = {
-                modelProcessCode: jsonData.modelProcessCode || "test2",
-                fromSystem: jsonData.fromSystem || "MS_2",
-                orderId: newOrderId,
-                taskOrderDetail: jsonData.taskOrderDetail || [
-                    {
-                        taskPath: "10000000",
-                        shelfNumber: "WAGON 1"
-                    }
-                ]
+                ...jsonData,
+                orderId: newOrderId
             };
-    
             console.log("🚀 Dữ liệu chuẩn bị gửi:", reorderedData);
-            console.log(`📩 Ô đang gửi: ${selectedCell} - Vị trí [${rowIndex}][${colIndex}]`);
-    
+
             const servers = serverIPs.map((ip, index) => {
                 if (index === 0) {
                     return { serverIP: ip, endpoint: defaultServers[0].endpoint };
@@ -90,84 +127,71 @@ const GridDisplay = ({ gridData }) => {
                     return { serverIP: ip, endpoint: defaultServers[1].endpoint };
                 }
             });
-    
-            const activeServers = [];
-            for (const server of servers) {
-                const { serverIP, endpoint } = server;
-                const isConnected = await checkServerConnection(serverIP, endpoint, 'HEAD');
-                if (isConnected) {
-                    activeServers.push(server);
-                } else {
-                    console.warn(`Server ${serverIP} không hoạt động, bỏ qua.`);
-                }
-            }
-    
-            if (activeServers.length === 0) {
-                throw new Error('Không có server nào hoạt động để gửi dữ liệu.');
-            }
-    
-            // Truyền serverIPs vào sendData
-            const results = await sendData(reorderedData, null, null, null, activeServers, serverIPs);
-    
-            const serverList = activeServers.map(s => `${s.serverIP}${s.endpoint}`).join(', ');
+            console.log('🌐 Danh sách server:', servers);
+
+            const results = await sendData(reorderedData, null, null, null, servers, serverIPs);
+            console.log('📤 Kết quả gửi:', results);
+
+            const serverList = servers.map(s => `${s.serverIP}${s.endpoint}`).join(', ');
             addHistory(`Đã gửi tín hiệu: Ô ${selectedCell} - Dữ liệu: ${JSON.stringify(reorderedData)} - Đến: ${serverList}`, currentKhu);
-    
+
             const allSuccess = results.every(result => result.success);
             if (allSuccess) {
                 setSendResult({
                     success: true,
                     message: `Đã gửi tín hiệu từ ô ${selectedCell} thành công đến tất cả server!`
                 });
-    
+
                 setCellStates(prev => ({
                     ...prev,
                     [selectedCell]: 'bg-success'
                 }));
+                console.log('✅ Gửi thành công!');
             } else {
                 const failedServers = results
                     .filter(result => !result.success)
                     .map(result => `${result.serverIP}${result.endpoint}: ${result.error}`)
                     .join(', ');
-    
+
                 setSendResult({
                     success: false,
                     message: `Gửi thất bại đến một số server: ${failedServers}`
                 });
-    
+
                 setCellStates(prev => ({
                     ...prev,
                     [selectedCell]: 'bg-danger'
                 }));
+                console.log('❌ Gửi thất bại:', failedServers);
             }
-    
+
             setTimeout(() => {
                 handleClose();
             }, 2000);
-    
+
             setTimeout(() => {
                 setCellStates(prev => ({
                     ...prev,
                     [selectedCell]: 'bg-info'
                 }));
             }, 4000);
-    
+
         } catch (error) {
             setSendResult({
                 success: false,
                 message: `Lỗi: ${error.message}`
             });
-    
+
             console.error("❌ Lỗi khi gửi dữ liệu:", error);
-    
             setCellStates(prev => ({
                 ...prev,
                 [selectedCell]: 'bg-danger'
             }));
-    
+
             setTimeout(() => {
                 handleClose();
             }, 2000);
-    
+
             setTimeout(() => {
                 setCellStates(prev => ({
                     ...prev,
@@ -176,31 +200,91 @@ const GridDisplay = ({ gridData }) => {
             }, 4000);
         } finally {
             setIsSending(false);
+            console.log('🏁 Kết thúc gửi tín hiệu');
         }
     };
 
     const renderGrid = () => {
+        if (loading) {
+            return <div>Đang tải dữ liệu...</div>;
+        }
+
+        if (error) {
+            return <div>Lỗi: {error}</div>;
+        }
+
         const cells = [];
+        let totalCellsToShow;
 
-        for (let i = 1; i <= config.cells; i++) {
+        // Xác định số ô cần hiển thị dựa trên currentKhu
+        if (currentKhu === 'SupplyAndDemand' || currentKhu === 'Demand') {
+            totalCellsToShow = 23; // Hiển thị 23 ô cho SupplyAndDemand và Demand
+        } else {
+            totalCellsToShow = 26; // Hiển thị 26 ô cho Supply
+        }
+
+        // Danh sách các ô bị vô hiệu hóa dựa trên currentKhu dựa trên Index
+        const disabledCells = {
+            'SupplyAndDemand': [1, 2, 8, 9, 10, 11],
+            'Supply': [3, 4, 5, 6, 7, 12, 13, 14, 20, 21],
+            'Demand': [3, 4, 5, 6, 7, 11, 12, 13, 14, 17, 18]
+        };
+
+        for (let i = 1; i <= totalCellsToShow; i++) {
             const cellState = cellStates[i] || 'bg-info';
-
-            const cellValue = gridData && gridData.flat()[i - 1]?.value ? gridData.flat()[i - 1].value : i;
+            // Tìm dữ liệu tương ứng với ô từ taskData
+            const cellData = taskData.find(item => item.cell === `cell-${i}`);
+            const cellValue = cellData ? cellData.value.taskOrderDetail[0]?.taskPath : i; // Hiển thị taskPath hoặc số ô nếu không có dữ liệu
 
             let cellLabel;
-            if (i <= 15) {
-                cellLabel = `MS_${i.toString().padStart(2, '0')}`;
+            let isDisabled = disabledCells[currentKhu] ? disabledCells[currentKhu].includes(i) : false;
+
+            // Logic hiển thị label cho từng khu vực
+            if (currentKhu === 'SupplyAndDemand') {
+                if (i <= 14) {
+                    cellLabel = `MS_${i.toString().padStart(2, '0')}`;
+                } else if (i === 15) {
+                    cellLabel = `MS_15`;
+                } else if (i === 16 || i === 17) {
+                    cellLabel = `MS_${i}`;
+                } else {
+                    const ptIndex = i - 17;
+                    cellLabel = `PA_${ptIndex.toString().padStart(2, '0')}`;
+                }
+            } else if (currentKhu === 'Demand') {
+                if (i <= 14) {
+                    cellLabel = `MS_${i.toString().padStart(2, '0')}`;
+                } else if (i >= 15 && i <= 16) {
+                    const j = i - 14;
+                    cellLabel = `MS_15_${j}`;
+                } else if (i === 17 || i === 18) {
+                    const msIndex = i - 1;
+                    cellLabel = `MS_${msIndex}`;
+                } else {
+                    const ptIndex = i - 18;
+                    cellLabel = `PA_${ptIndex.toString().padStart(2, '0')}`;
+                }
             } else {
-                const ptIndex = i - 15;
-                cellLabel = `PT_${ptIndex.toString().padStart(2, '0')}`;
+                if (i <= 14) {
+                    cellLabel = `MS_${i.toString().padStart(2, '0')}`;
+                } else if (i >= 15 && i <= 19) {
+                    const j = i - 14;
+                    cellLabel = `MS_15_${j}`;
+                } else if (i === 20 || i === 21) {
+                    const msIndex = i - 4;
+                    cellLabel = `MS_${msIndex}`;
+                } else {
+                    const ptIndex = i - 21;
+                    cellLabel = `PA_${ptIndex.toString().padStart(2, '0')}`;
+                }
             }
 
             cells.push(
                 <div className="col-6 col-sm-4 col-md-3 col-lg-2 col-xl-2" key={i}>
                     <div
                         id={`cell-${i}`}
-                        className={`${cellState} text-white grid-cell`}
-                        onClick={() => handleCellClick(i)}
+                        className={`${cellState} text-white grid-cell ${isDisabled ? 'disabled' : ''}`}
+                        onClick={() => !isDisabled && handleCellClick(i)}
                         style={{
                             height: '80px',
                             margin: '5px',
@@ -210,10 +294,14 @@ const GridDisplay = ({ gridData }) => {
                             borderRadius: '8px',
                             fontWeight: 'bold',
                             fontSize: '16px',
-                            cursor: 'pointer'
+                            cursor: isDisabled ? 'not-allowed' : 'pointer',
+                            opacity: isDisabled ? 0.5 : 1
                         }}
                     >
-                        {cellLabel}
+                        <div>
+                            <div>{cellLabel}</div>
+                            {/* <div style={{ fontSize: '12px' }}>{cellValue}</div> {} */}
+                        </div>
                     </div>
                 </div>
             );
@@ -226,12 +314,9 @@ const GridDisplay = ({ gridData }) => {
         <div className="w-100">
             <Card className="w-100">
                 <Card.Header className="bg-light">
-                    <h5 className="mb-0">KHU {currentKhu === 'khu4' ? '4' : '5'} - HIỂN THỊ LƯỚI</h5>
+                    <h5 className="mb-0">KHU VỰC {khuMap[currentKhu]}</h5>
                 </Card.Header>
                 <Card.Body>
-                    <div className="mb-3">
-                        <strong>Cấu hình:</strong> {config.cells} ô
-                    </div>
                     <div className="mb-3">
                         <strong>Server:</strong> {serverIPs.join(', ')}
                     </div>

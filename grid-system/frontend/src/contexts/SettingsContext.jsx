@@ -25,9 +25,10 @@ export const SettingsProvider = ({ children }) => {
 
     const [serverIPs, setServerIPs] = useState(['127.0.0.1:8000']);
     const [inputServerIP, setInputServerIP] = useState(''); 
-    const [khu4Config, setKhu4Config] = useState({ rows: 4, columns: 4, cells: 16 });
-    const [khu5Config, setKhu5Config] = useState({ rows: 4, columns: 4, cells: 16 });
-    const [activeKhu, setActiveKhu] = useState('khu4');
+    const [SupplyAndDemandConfig, setSupplyAndDemandConfig] = useState({ rows: 4, columns: 4, cells: 16 });
+    const [SupplyConfig, setSupplyConfig] = useState({ rows: 4, columns: 4, cells: 16 });
+    const [DemandConfig, setDemandConfig] = useState({ rows: 4, columns: 4, cells: 16 });
+    const [activeKhu, setActiveKhu] = useState('SupplyAndDemand');
     const [showAlert, setShowAlert] = useState(false);
     const [alertMessage, setAlertMessage] = useState('');
 
@@ -41,9 +42,10 @@ export const SettingsProvider = ({ children }) => {
                         ? savedConfig.serverIPs.filter(ip => ip && typeof ip === 'string')
                         : ['127.0.0.1:8000']
                 );
-                setKhu4Config(savedConfig.khu4Config || { rows: 4, columns: 4, cells: 16 });
-                setKhu5Config(savedConfig.khu5Config || { rows: 4, columns: 4, cells: 16 });
-                setActiveKhu(savedConfig.activeKhu || 'khu4');
+                setSupplyAndDemandConfig(savedConfig.SupplyAndDemandConfig || { rows: 4, columns: 4, cells: 16 });
+                setSupplyConfig(savedConfig.SupplyConfig || { rows: 4, columns: 4, cells: 16 });
+                setDemandConfig(savedConfig.DemandConfig || { rows: 4, columns: 4, cells: 16 });
+                setActiveKhu(savedConfig.activeKhu || 'SupplyAndDemand');
             } else {
                 setServerIPs(['127.0.0.1:8000']);
             }
@@ -65,10 +67,11 @@ export const SettingsProvider = ({ children }) => {
     
             const configToSave = {
                 serverIPs,
-                khu4Config,
-                khu5Config,
+                SupplyAndDemandConfig,
+                SupplyConfig,
+                DemandConfig,
                 activeKhu: khu,
-                gridData: savedConfig?.gridData || { khu4: [], khu5: [] }
+                gridData: savedConfig?.gridData || { SupplyAndDemand: [], Supply: [], Demand: [] }
             };
     
             await saveUserConfig(configToSave);
@@ -112,10 +115,11 @@ export const SettingsProvider = ({ children }) => {
             setServerIPs(newServerIPs);
             const configToSave = {
                 serverIPs: newServerIPs,
-                khu4Config,
-                khu5Config,
+                SupplyAndDemandConfig,
+                SupplyConfig,
+                DemandConfig,
                 activeKhu,
-                gridData: savedConfig?.gridData || { khu4: [], khu5: [] }
+                gridData: savedConfig?.gridData || { SupplyAndDemand: [], Supply: [], Demand: [] }
             };
     
             await saveUserConfig(configToSave);
@@ -132,15 +136,17 @@ export const SettingsProvider = ({ children }) => {
     const handleReset = async () => {
         setServerIPs(['127.0.0.1:8000']);
         setInputServerIP('127.0.0.1:8000');
-        setKhu4Config({ rows: 4, columns: 4, cells: 16 });
-        setKhu5Config({ rows: 4, columns: 4, cells: 16 });
-        setActiveKhu('khu4');
+        setSupplyAndDemandConfig({ rows: 4, columns: 4, cells: 16 });
+        setSupplyConfig({ rows: 4, columns: 4, cells: 16 });
+        setDemandConfig({ rows: 4, columns: 4, cells: 16 });
+        setActiveKhu('SupplyAndDemand');
         const configToSave = {
             serverIPs: ['127.0.0.1:8000'],
-            khu4Config: { rows: 4, columns: 4, cells: 16 },
-            khu5Config: { rows: 4, columns: 4, cells: 16 },
-            activeKhu: 'khu4',
-            gridData: { khu4: [], khu5: [] }
+            SupplyAndDemandConfig: { rows: 4, columns: 4, cells: 16 },
+            SupplyConfig: { rows: 4, columns: 4, cells: 16 },
+            DemandConfig: { rows: 4, columns: 4, cells: 16 },
+            activeKhu: 'SupplyAndDemand',
+            gridData: { SupplyAndDemand: [], Supply: [], Demand: [] }
         };
         await saveUserConfig(configToSave);
         setAlertMessage('Đã khôi phục cài đặt mặc định! Vui lòng khởi động lại ứng dụng để áp dụng.');
@@ -153,10 +159,12 @@ export const SettingsProvider = ({ children }) => {
                 serverIPs,
                 inputServerIP,
                 setInputServerIP,
-                khu4Config,
-                setKhu4Config,
-                khu5Config,
-                setKhu5Config,
+                SupplyAndDemandConfig,
+                setSupplyAndDemandConfig,
+                SupplyConfig,
+                setSupplyConfig,
+                DemandConfig,
+                setDemandConfig,
                 activeKhu,
                 switchKhu,
                 handleSaveConfig,

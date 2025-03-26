@@ -1,6 +1,5 @@
 ﻿import React from 'react';
 import { Card, Form, Button, Alert, Container } from 'react-bootstrap';
-//import { useSettings } from '../contexts/SettingsComponent';
 import { useSettings } from "../contexts/SettingsContext";
 
 const Settings = () => {
@@ -8,10 +7,12 @@ const Settings = () => {
         serverIPs,
         inputServerIP,
         setInputServerIP,
-        khu4Config,
-        setKhu4Config,
-        khu5Config,
-        setKhu5Config,
+        SupplyAndDemandConfig, // Sửa tên biến cho nhất quán
+        setSupplyAndDemandConfig,
+        SupplyConfig, // Sửa tên biến cho nhất quán
+        setSupplyConfig,
+        DemandConfig, // Sửa tên biến cho nhất quán
+        setDemandConfig,
         handleSaveConfig,
         handleReset,
         showAlert,
@@ -20,7 +21,12 @@ const Settings = () => {
 
     // Hàm cập nhật dữ liệu trong localStorage khi cấu hình lưới thay đổi
     const updateGridData = (khu, newRows, newColumns) => {
-        const key = khu === 'khu4' ? 'khu4GridData' : 'khu5GridData';
+        const key = khu === 'SupplyAndDemand' 
+            ? 'SupplyAndDemandGridData' 
+            : khu === 'Supply' 
+                ? 'SupplyGridData' 
+                : 'DemandGridData'; // Sửa cú pháp toán tử ba ngôi
+
         const savedData = localStorage.getItem(key);
         let gridData = savedData ? JSON.parse(savedData) : [];
 
@@ -42,32 +48,46 @@ const Settings = () => {
     };
 
     // Hàm xử lý khi thay đổi số hàng hoặc số cột
-    const handleKhu4RowsChange = (e) => {
+    const handleSupplyAndDemandRowsChange = (e) => {
         const newRows = parseInt(e.target.value) || 1;
-        const newCells = newRows * khu4Config.columns;
-        setKhu4Config({ ...khu4Config, rows: newRows, cells: newCells });
-        updateGridData('khu4', newRows, khu4Config.columns);
+        const newCells = newRows * SupplyAndDemandConfig.columns;
+        setSupplyAndDemandConfig({ ...SupplyAndDemandConfig, rows: newRows, cells: newCells });
+        updateGridData('SupplyAndDemand', newRows, SupplyAndDemandConfig.columns);
     };
 
-    const handleKhu4ColumnsChange = (e) => {
+    const handleSupplyAndDemandColumnsChange = (e) => {
         const newColumns = parseInt(e.target.value) || 1;
-        const newCells = khu4Config.rows * newColumns;
-        setKhu4Config({ ...khu4Config, columns: newColumns, cells: newCells });
-        updateGridData('khu4', khu4Config.rows, newColumns);
+        const newCells = SupplyAndDemandConfig.rows * newColumns;
+        setSupplyAndDemandConfig({ ...SupplyAndDemandConfig, columns: newColumns, cells: newCells });
+        updateGridData('SupplyAndDemand', SupplyAndDemandConfig.rows, newColumns);
     };
 
-    const handleKhu5RowsChange = (e) => {
+    const handleSupplyRowsChange = (e) => {
         const newRows = parseInt(e.target.value) || 1;
-        const newCells = newRows * khu5Config.columns;
-        setKhu5Config({ ...khu5Config, rows: newRows, cells: newCells });
-        updateGridData('khu5', newRows, khu5Config.columns);
+        const newCells = newRows * SupplyConfig.columns;
+        setSupplyConfig({ ...SupplyConfig, rows: newRows, cells: newCells });
+        updateGridData('Supply', newRows, SupplyConfig.columns);
     };
 
-    const handleKhu5ColumnsChange = (e) => {
+    const handleSupplyColumnsChange = (e) => {
         const newColumns = parseInt(e.target.value) || 1;
-        const newCells = khu5Config.rows * newColumns;
-        setKhu5Config({ ...khu5Config, columns: newColumns, cells: newCells });
-        updateGridData('khu5', khu5Config.rows, newColumns);
+        const newCells = SupplyConfig.rows * newColumns;
+        setSupplyConfig({ ...SupplyConfig, columns: newColumns, cells: newCells });
+        updateGridData('Supply', SupplyConfig.rows, newColumns);
+    };
+
+    const handleDemandRowsChange = (e) => {
+        const newRows = parseInt(e.target.value) || 1;
+        const newCells = newRows * DemandConfig.columns; // Sửa thành DemandConfig
+        setDemandConfig({ ...DemandConfig, rows: newRows, cells: newCells }); // Sửa thành setDemandConfig
+        updateGridData('Demand', newRows, DemandConfig.columns);
+    };
+
+    const handleDemandColumnsChange = (e) => {
+        const newColumns = parseInt(e.target.value) || 1;
+        const newCells = DemandConfig.rows * newColumns;
+        setDemandConfig({ ...DemandConfig, columns: newColumns, cells: newCells }); // Sửa thành setDemandConfig
+        updateGridData('Demand', DemandConfig.rows, newColumns);
     };
 
     return (
@@ -98,7 +118,7 @@ const Settings = () => {
                             </Form.Text>
                         </Form.Group>
 
-                        <div className="settings-title">Cấu hình KHU 4</div>
+                        <div className="settings-title">Cấu hình khu vực Cấp&Trả hàng</div>
                         <div className="row">
                             <div className="col-md-4 mb-3">
                                 <Form.Label>Số hàng:</Form.Label>
@@ -106,8 +126,8 @@ const Settings = () => {
                                     type="number"
                                     min="1"
                                     max="10"
-                                    value={khu4Config.rows}
-                                    onChange={handleKhu4RowsChange}
+                                    value={SupplyAndDemandConfig.rows}
+                                    onChange={handleSupplyAndDemandRowsChange}
                                     className="form-control-lg"
                                 />
                             </div>
@@ -117,23 +137,23 @@ const Settings = () => {
                                     type="number"
                                     min="1"
                                     max="10"
-                                    value={khu4Config.columns}
-                                    onChange={handleKhu4ColumnsChange}
+                                    value={SupplyAndDemandConfig.columns}
+                                    onChange={handleSupplyAndDemandColumnsChange}
                                     className="form-control-lg"
                                 />
                             </div>
-                            <div className="col-md-4 mb-3">
+                            <div className="col Cement-md-4 mb-3">
                                 <Form.Label>Tổng số ô:</Form.Label>
                                 <Form.Control
                                     type="number"
                                     min="1"
-                                    max={khu4Config.rows * khu4Config.columns}
-                                    value={khu4Config.cells}
+                                    max={SupplyAndDemandConfig.rows * SupplyAndDemandConfig.columns}
+                                    value={SupplyAndDemandConfig.cells}
                                     onChange={(e) => {
                                         const newCells = parseInt(e.target.value) || 1;
-                                        setKhu4Config({
-                                            ...khu4Config,
-                                            cells: Math.min(newCells, khu4Config.rows * khu4Config.columns)
+                                        setSupplyAndDemandConfig({
+                                            ...SupplyAndDemandConfig,
+                                            cells: Math.min(newCells, SupplyAndDemandConfig.rows * SupplyAndDemandConfig.columns)
                                         });
                                     }}
                                     className="form-control-lg"
@@ -141,7 +161,7 @@ const Settings = () => {
                             </div>
                         </div>
 
-                        <div className="settings-title mt-4">Cấu hình KHU 5</div>
+                        <div className="settings-title mt-4">Cấu hình khu vực Cấp hàng</div>
                         <div className="row">
                             <div className="col-md-4 mb-3">
                                 <Form.Label>Số hàng:</Form.Label>
@@ -149,8 +169,8 @@ const Settings = () => {
                                     type="number"
                                     min="1"
                                     max="10"
-                                    value={khu5Config.rows}
-                                    onChange={handleKhu5RowsChange}
+                                    value={SupplyConfig.rows}
+                                    onChange={handleSupplyRowsChange}
                                     className="form-control-lg"
                                 />
                             </div>
@@ -160,8 +180,8 @@ const Settings = () => {
                                     type="number"
                                     min="1"
                                     max="10"
-                                    value={khu5Config.columns}
-                                    onChange={handleKhu5ColumnsChange}
+                                    value={SupplyConfig.columns}
+                                    onChange={handleSupplyColumnsChange}
                                     className="form-control-lg"
                                 />
                             </div>
@@ -170,13 +190,56 @@ const Settings = () => {
                                 <Form.Control
                                     type="number"
                                     min="1"
-                                    max={khu5Config.rows * khu5Config.columns}
-                                    value={khu5Config.cells}
+                                    max={SupplyConfig.rows * SupplyConfig.columns}
+                                    value={SupplyConfig.cells}
                                     onChange={(e) => {
                                         const newCells = parseInt(e.target.value) || 1;
-                                        setKhu5Config({
-                                            ...khu5Config,
-                                            cells: Math.min(newCells, khu5Config.rows * khu5Config.columns)
+                                        setSupplyConfig({
+                                            ...SupplyConfig,
+                                            cells: Math.min(newCells, SupplyConfig.rows * SupplyConfig.columns)
+                                        });
+                                    }}
+                                    className="form-control-lg"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="settings-title mt-4">Cấu hình khu vực Trả hàng</div>
+                        <div className="row">
+                            <div className="col-md-4 mb-3">
+                                <Form.Label>Số hàng:</Form.Label>
+                                <Form.Control
+                                    type="number"
+                                    min="1"
+                                    max="10"
+                                    value={DemandConfig.rows}
+                                    onChange={handleDemandRowsChange}
+                                    className="form-control-lg"
+                                />
+                            </div>
+                            <div className="col-md-4 mb-3">
+                                <Form.Label>Số cột:</Form.Label>
+                                <Form.Control
+                                    type="number"
+                                    min="1"
+                                    max="10"
+                                    value={DemandConfig.columns}
+                                    onChange={handleDemandColumnsChange}
+                                    className="form-control-lg"
+                                />
+                            </div>
+                            <div className="col-md-4 mb-3">
+                                <Form.Label>Tổng số ô:</Form.Label>
+                                <Form.Control
+                                    type="number"
+                                    min="1"
+                                    max={DemandConfig.rows * DemandConfig.columns}
+                                    value={DemandConfig.cells}
+                                    onChange={(e) => {
+                                        const newCells = parseInt(e.target.value) || 1;
+                                        setDemandConfig({ // Sửa thành setDemandConfig
+                                            ...DemandConfig,
+                                            cells: Math.min(newCells, DemandConfig.rows * DemandConfig.columns)
                                         });
                                     }}
                                     className="form-control-lg"

@@ -6,8 +6,9 @@ import HistoryComponent from '../components/HistoryComponent';
 const Settings = () => {
     const {
         serverIP, setServerIP,
-        khu4Config, setKhu4Config,
-        khu5Config, setKhu5Config,
+        SupplyAndDemandConfig, setSupplyAndDemandConfig,
+        SupplyConfig, setSupplyConfig,
+        DemandConfig, setDemandConfig,
         activeKhu, switchKhu,
         handleSaveConfig, handleReset,
         showAlert, alertMessage,
@@ -15,10 +16,11 @@ const Settings = () => {
     } = useSettings();
 
     // Xác định cấu hình hiện tại dựa trên khu đang chọn
-    const currentConfig = activeKhu === 'khu4' ? khu4Config : khu5Config;
-    const setCurrentConfig = activeKhu === 'khu4'
-        ? (config) => setKhu4Config({ ...khu4Config, ...config })
-        : (config) => setKhu5Config({ ...khu5Config, ...config });
+    const setCurrentConfig = activeKhu === 'SupplyAndDemand'
+    ? (config) => setSupplyAndDemandConfig({ ...SupplyAndDemandConfig, ...config })
+    : activeKhu === 'Demand'
+        ? (config) => setDemandConfig({ ...DemandConfig, ...config })
+        : (config) => setSupplyConfig({ ...SupplyConfig, ...config });
 
     return (
         <Container>
@@ -53,25 +55,25 @@ const Settings = () => {
                             <div className="d-flex gap-3">
                                 <Form.Check
                                     type="radio"
-                                    id="khu4"
+                                    id="SupplyAndDemand"
                                     label="KHU 4"
                                     name="khuSelection"
-                                    checked={activeKhu === 'khu4'}
-                                    onChange={() => switchKhu('khu4')}
+                                    checked={activeKhu === 'SupplyAndDemand'}
+                                    onChange={() => switchKhu('SupplyAndDemand')}
                                 />
                                 <Form.Check
                                     type="radio"
-                                    id="khu5"
+                                    id="Supply"
                                     label="KHU 5"
                                     name="khuSelection"
-                                    checked={activeKhu === 'khu5'}
-                                    onChange={() => switchKhu('khu5')}
+                                    checked={activeKhu === 'Supply'}
+                                    onChange={() => switchKhu('Supply')}
                                 />
                             </div>
                         </Form.Group>
 
                         <div className="mb-3 p-3 border rounded">
-                            <h6>Cấu hình cho {activeKhu === 'khu4' ? 'KHU 4' : 'KHU 5'}</h6>
+                            <h6>Cấu hình cho {activeKhu === 'SupplyAndDemand' ? 'KHU 4' : 'KHU 5'}</h6>
                             <Row>
                                 <Col md={4}>
                                     <Form.Group className="mb-3">
