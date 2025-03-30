@@ -1,4 +1,4 @@
 @echo off
 echo Starting FastAPI server...
-uvicorn main:app --host 192.168.1.7 --port 8000
+uvicorn main:app --host 192.168.1.5 --port 8001
 pause

@@ -27,5 +27,9 @@ export default defineConfig({
         alias: {
             '@src': path.resolve(__dirname, 'grid-system/frontend/src')
         }
+    },
+    server: {
+        host: '192.168.1.5', // Thay đổi từ 'localhost' thành '0.0.0.0'
+        port: 5173,      // Giữ nguyên cổng mặc định (hoặc thay đổi nếu cần)
     }
 });

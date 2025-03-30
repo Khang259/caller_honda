@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Card, Nav, Tab, Alert, Modal, Button } from 'react-bootstrap';
 import { useSettings } from "../contexts/SettingsContext";
 import { sendData, defaultServers } from '../services/api';
@@ -20,6 +20,54 @@ const AllKhuDisplay = () => {
     const [isSending, setIsSending] = useState(false);
     const [sendResult, setSendResult] = useState({ success: false, message: '' });
     const [cellStates, setCellStates] = useState({});
+
+    // Thêm state để lưu dữ liệu từ file JSON
+    const [taskData, setTaskData] = useState({
+        SupplyAndDemand: [],
+        Supply: [],
+        Demand: []
+    });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    // Load dữ liệu từ file JSON khi component mount
+    useEffect(() => {
+        const fetchTaskData = async (khu) => {
+            setLoading(true);
+            setError(null);
+
+            try {
+                const response = await fetch(`/task_path_${khu.toLowerCase()}.json`);
+                if (!response.ok) {
+                    throw new Error(`Không thể tải dữ liệu: ${response.statusText}`);
+                }
+                const data = await response.json();
+                console.log(`✅ Dữ liệu từ file JSON (${khu}):`, data);
+                return data;
+            } catch (err) {
+                console.error(`❌ Lỗi khi tải dữ liệu (${khu}):`, err.message);
+                setError(err.message);
+                return [];
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        // Load dữ liệu cho cả 3 khu vực
+        const loadAllData = async () => {
+            const supplyAndDemandData = await fetchTaskData('SupplyAndDemand');
+            const supplyData = await fetchTaskData('Supply');
+            const demandData = await fetchTaskData('Demand');
+
+            setTaskData({
+                SupplyAndDemand: supplyAndDemandData,
+                Supply: supplyData,
+                Demand: demandData
+            });
+        };
+
+        loadAllData();
+    }, []);
 
     const handleCellClick = (cellNumber, khu) => {
         console.log(`✅ Ô ${cellNumber} (${khu}) được nhấn`);
@@ -45,37 +93,32 @@ const AllKhuDisplay = () => {
 
         setIsSending(true);
         try {
-            const config = selectedKhu === "SupplyAndDemand" ? SupplyAndDemandConfig : selectedKhu === "Supply" ? SupplyConfig : DemandConfig;
-            const key = selectedKhu === "SupplyAndDemand" ? "SupplyAndDemandGridData" : selectedKhu === "Supply" ? "SupplyGridData" : "DemandGridData";
-            const savedData = localStorage.getItem(key);
-            const gridData = savedData ? JSON.parse(savedData) : [];
+            // Lấy dữ liệu từ taskData dựa trên khu vực và ô được chọn
+            const khuData = taskData[selectedKhu];
+            const selectedData = khuData.find(item => item.cell === `cell-${selectedCell}`);
 
-            const columns = config.columns || (selectedKhu === "SupplyAndDemand" ? 4 : 5);
-            const rowIndex = Math.floor((selectedCell - 1) / columns);
-            const colIndex = (selectedCell - 1) % columns;
-
-            let cellData;
-            if (gridData[rowIndex] && gridData[rowIndex][colIndex]) {
-                cellData = JSON.parse(gridData[rowIndex][colIndex].value);
-            } else {
-                cellData = {
-                    modelProcessCode: "1301",
-                    fromSystem: "thadosoft",
-                    orderId: `thadosoft_${selectedCell}`,
-                    taskOrderDetail: [
-                        {
-                            taskPath: "",
-                        }
-                    ]
-                };
+            if (!selectedData) {
+                throw new Error(`Không tìm thấy dữ liệu cho ô ${selectedCell} trong khu ${selectedKhu}`);
             }
 
-            const orderCount = parseInt(localStorage.getItem("orderCount") || "1", 10);
-            cellData.orderId = `thado_${orderCount}`;
-            localStorage.setItem("orderCount", orderCount + 1);
+            const cellData = selectedData.value;
+            console.log('📋 Dữ liệu JSON từ file:', cellData);
 
-            // Gửi dữ liệu trực tiếp bằng sendData mà không kiểm tra kết nối
-            const results = await sendData(cellData, selectedCell, selectedKhu, null, effectiveServers);
+            // Tạo orderId mới
+            const orderCount = parseInt(localStorage.getItem("orderCount") || "1", 10);
+            const newOrderId = `sptech_${orderCount}`;
+            localStorage.setItem("orderCount", orderCount + 1);
+            console.log('🆔 Order ID mới:', newOrderId);
+
+            // Cập nhật orderId trong cellData
+            const reorderedData = {
+                ...cellData,
+                orderId: newOrderId
+            };
+            console.log("🚀 Dữ liệu chuẩn bị gửi:", reorderedData);
+
+            // Gửi dữ liệu trực tiếp bằng sendData
+            const results = await sendData(reorderedData, selectedCell, selectedKhu, null, effectiveServers);
 
             const serverList = effectiveServers.map(s => `${s.serverIP}${s.endpoint}`).join(', ');
 
@@ -240,6 +283,16 @@ const AllKhuDisplay = () => {
                                 Cảnh báo: Bạn đã thay đổi địa chỉ server nhưng chưa lưu cấu hình!
                             </Alert>
                         )}
+                        {error && (
+                            <Alert variant="danger" className="mt-2">
+                                {error}
+                            </Alert>
+                        )}
+                        {loading && (
+                            <Alert variant="info" className="mt-2">
+                                Đang tải dữ liệu...
+                            </Alert>
+                        )}
 
                         <Tab.Container id="khu-tabs" defaultActiveKey="SupplyAndDemand">
                             <Nav variant="tabs" className="mb-3">
@@ -290,36 +343,36 @@ const AllKhuDisplay = () => {
                 </Card.Body>
             </Card>
 
-                <Modal show={showModal} onHide={handleClose}>
-                    <Modal.Header closeButton>
-                        <Modal.Title>Xác nhận - Ô {getSelectedCellLabel()} ({selectedKhu?.toUpperCase()})</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        {sendResult.message ? (
-                            <div className={`alert ${sendResult.success ? 'alert-success' : 'alert-danger'}`}>
-                                {sendResult.message}
-                            </div>
-                        ) : (
-                            <p>Bạn có chắc chắn muốn gửi dữ liệu từ ô {getSelectedCellLabel()} không?</p>
-                        )}
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button variant="secondary" onClick={handleClose}>
-                            Đóng
+            <Modal show={showModal} onHide={handleClose}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Xác nhận - Ô {getSelectedCellLabel()} ({selectedKhu?.toUpperCase()})</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    {sendResult.message ? (
+                        <div className={`alert ${sendResult.success ? 'alert-success' : 'alert-danger'}`}>
+                            {sendResult.message}
+                        </div>
+                    ) : (
+                        <p>Bạn có chắc chắn muốn gửi dữ liệu từ ô {getSelectedCellLabel()} không?</p>
+                    )}
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={handleClose}>
+                        Đóng
+                    </Button>
+                    {!sendResult.message && (
+                        <Button
+                            variant="primary"
+                            onClick={handleSubmit}
+                            disabled={isSending}
+                        >
+                            {isSending ? 'Đang gửi...' : 'Gửi dữ liệu'}
                         </Button>
-                        {!sendResult.message && (
-                            <Button
-                                variant="primary"
-                                onClick={handleSubmit}
-                                disabled={isSending}
-                            >
-                                {isSending ? 'Đang gửi...' : 'Gửi dữ liệu'}
-                            </Button>
-                        )}
-                    </Modal.Footer>
-                </Modal>
-            </div>
-        );
-    };
+                    )}
+                </Modal.Footer>
+            </Modal>
+        </div>
+    );
+};
 
 export default AllKhuDisplay;

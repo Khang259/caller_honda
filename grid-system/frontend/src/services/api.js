@@ -4,7 +4,6 @@
 ];
 
 export const sendData = async (customData = null, cell = null, khu = null, additionalData = null, servers = null, serverIPs = null) => {
-    console.log("🚀 Gọi `sendData` với:", { cell, khu, additionalData });
 
     try {
         // Nếu không có servers được truyền vào, sử dụng serverIPs từ tham số

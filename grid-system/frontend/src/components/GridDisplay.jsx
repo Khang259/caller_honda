@@ -8,7 +8,6 @@ import { useSettings } from "../contexts/SettingsContext";
 const GridDisplay = ({ gridData }) => {
     const { currentUser, isAdmin } = useAuth();
     const { serverIPs, SupplyAndDemandConfig, SupplyConfig, DemandConfig, activeKhu } = useSettings();
-    // Đảm bảo currentKhu luôn là một giá trị hợp lệ
     const validKhus = ['SupplyAndDemand', 'Supply', 'Demand'];
     const currentKhu = validKhus.includes(activeKhu) ? activeKhu : 'SupplyAndDemand';
     const { addHistory } = useHistory();
@@ -18,61 +17,59 @@ const GridDisplay = ({ gridData }) => {
     const [showModal, setShowModal] = useState(false);
     const [selectedCell, setSelectedCell] = useState(null);
     const [sendResult, setSendResult] = useState({ success: false, message: '' });
-    const [taskData, setTaskData] = useState([]); // State để lưu dữ liệu từ file JSON
-    const [loading, setLoading] = useState(true); // State để kiểm tra trạng thái load file JSON
-    const [error, setError] = useState(null); // State để lưu lỗi nếu load file JSON thất bại
+    const [taskData, setTaskData] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    // Sửa cú pháp chọn config
     const config = currentKhu === 'SupplyAndDemand' ? SupplyAndDemandConfig : 
                    currentKhu === 'Supply' ? SupplyConfig : DemandConfig;
 
-    // Object mapping cho khu vực
     const khuMap = {
         'SupplyAndDemand': 'CẤP&TRẢ HÀNG',
         'Supply': 'CẤP HÀNG',
         'Demand': 'TRẢ HÀNG'
     };
 
-    // Tải dữ liệu từ file JSON tương ứng dựa trên currentKhu
+    // Tải dữ liệu từ FastAPI (Redis) thay vì file JSON
     useEffect(() => {
         const fetchTaskData = async () => {
-            setLoading(true); // Bắt đầu load
-            setError(null); // Reset lỗi
-
-            let jsonFile;
-            if (currentKhu === 'SupplyAndDemand') {
-                jsonFile = '/task_path_supply_demand.json';
-            } else if (currentKhu === 'Supply') {
-                jsonFile = '/task_path_supply.json';
-            } else if (currentKhu === 'Demand') {
-                jsonFile = '/task_path_demand.json';
-            }
-
+            setLoading(true);
+            setError(null);
+            const startTime = Date.now();
+        
             try {
-                const response = await fetch(jsonFile);
+                const response = await fetch(`http://192.168.1.5:8000/get-task-data/${currentKhu}`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                });
                 if (!response.ok) {
-                    throw new Error(`Không thể tải file JSON: ${response.statusText}`);
+                    throw new Error(`HTTP error! Status: ${response.status}`);
                 }
-                const data = await response.json();
-                if (!Array.isArray(data)) {
-                    throw new Error('Dữ liệu từ file JSON không phải là một mảng');
+                const result = await response.json();
+                const duration = (Date.now() - startTime) / 1000; // Giây
+                console.log(`📦 Kết quả từ server (mất ${duration.toFixed(3)}s):`, result);
+                if (result.status === 'success') {
+                    setTaskData(result.data);
+                    console.log(`✅ Dữ liệu từ Redis (${currentKhu}):`);
+                } else {
+                    throw new Error(result.message);
                 }
-                setTaskData(data);
-                console.log(`✅ Dữ liệu từ ${jsonFile}:`, data);
             } catch (error) {
-                console.error(`❌ Lỗi khi tải dữ liệu từ ${jsonFile}:`, error.message);
+                console.error(`❌ Lỗi khi tải dữ liệu từ Redis (${currentKhu}):`, error);
                 setError(error.message);
                 setTaskData([]);
             } finally {
-                setLoading(false); // Kết thúc load
+                const duration = (Date.now() - startTime) / 1000;
+                console.log(`🏁 Hoàn tất fetchTaskData, tổng thời gian: ${duration.toFixed(3)}s`);
+                setLoading(false);
             }
         };
-
+    
         fetchTaskData();
-    }, [currentKhu]); // Gọi lại khi currentKhu thay đổi
+    }, [currentKhu]);
 
     const handleCellClick = (cellNumber) => {
-        console.log(`🖱️ Ô được chọn: cell-${cellNumber}`); // Log khi chọn ô
+        console.log(`🖱️ Ô được chọn: cell-${cellNumber}`);
         setSelectedCell(cellNumber);
         setShowModal(true);
     };
@@ -83,43 +80,47 @@ const GridDisplay = ({ gridData }) => {
     };
 
     const handleSendSignal = async () => {
-        console.log('🚀 Bắt đầu gửi tín hiệu...'); // Log khi nhấn nút "Gửi tín hiệu"
-        console.log('📍 Ô được chọn:', selectedCell);
         console.log('📊 Dữ liệu taskData:', taskData);
-
+    
         if (isSending) {
             console.log('⏳ Đang gửi, bỏ qua...');
             return;
         }
-
+    
         try {
             setIsSending(true);
             console.log('🔍 Tìm dữ liệu cho ô:', `cell-${selectedCell}`);
-
-            // Tìm dữ liệu tương ứng với ô được chọn từ taskData
+    
             const selectedData = taskData.find(item => item.cell === `cell-${selectedCell}`);
             console.log('📦 Dữ liệu tìm thấy:', selectedData);
-
+    
             if (!selectedData) {
-                throw new Error(`Không tìm thấy dữ liệu cho ô ${selectedCell} trong file JSON`);
+                throw new Error(`Không thể tìm thấy dữ liệu cho ô ${selectedCell} trong dữ liệu từ Redis`);
             }
-
-            // Lấy giá trị của "value" từ object trong file JSON
+    
             const jsonData = selectedData.value;
-            console.log('📋 Dữ liệu JSON từ file:', jsonData);
-
-            const orderCount = parseInt(localStorage.getItem("orderCount") || "1", 10);
-            const newOrderId = `thadosoft_${orderCount}`;
-            localStorage.setItem("orderCount", orderCount + 1);
+            console.log('📋 Dữ liệu JSON từ Redis:', jsonData);
+    
+            const response = await fetch('http://192.168.1.5:8000/getOrderCount');
+            if (!response.ok) {
+                throw new Error('Không thể lấy orderCount từ server');
+            }
+            const { orderCount } = await response.json();
+            const newOrderId = `Sptech_${orderCount}`;
             console.log('🆔 Order ID mới:', newOrderId);
-
-            // Sử dụng trực tiếp giá trị "value" từ file JSON và thêm orderId
+    
             const reorderedData = {
-                ...jsonData,
-                orderId: newOrderId
+                modelProcessCode: jsonData.modelProcessCode || "1302",
+                fromSystem: jsonData.fromSystem || "thadosoft",
+                orderId: newOrderId,
+                taskOrderDetail: jsonData.taskOrderDetail || [
+                    {
+                        taskPath: ""
+                    }
+                ]
             };
             console.log("🚀 Dữ liệu chuẩn bị gửi:", reorderedData);
-
+    
             const servers = serverIPs.map((ip, index) => {
                 if (index === 0) {
                     return { serverIP: ip, endpoint: defaultServers[0].endpoint };
@@ -128,70 +129,83 @@ const GridDisplay = ({ gridData }) => {
                 }
             });
             console.log('🌐 Danh sách server:', servers);
-
+    
             const results = await sendData(reorderedData, null, null, null, servers, serverIPs);
             console.log('📤 Kết quả gửi:', results);
-
+    
             const serverList = servers.map(s => `${s.serverIP}${s.endpoint}`).join(', ');
             addHistory(`Đã gửi tín hiệu: Ô ${selectedCell} - Dữ liệu: ${JSON.stringify(reorderedData)} - Đến: ${serverList}`, currentKhu);
-
+    
+            // Lưu lịch sử vào grid_history (Redis và MongoDB)
+            const cellLabel = currentKhu === 'SupplyAndDemand' && selectedCell <= 14
+                ? `MS_${selectedCell.toString().padStart(2, '0')}`
+                : `MS_${selectedCell}`; // Điều chỉnh cellLabel theo logic của bạn
+            await fetch('http://192.168.1.5:8000/submit-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    cell: cellLabel,
+                    action: 'clicked',
+                    timestamp: new Date().toISOString()
+                })
+            });
+    
             const allSuccess = results.every(result => result.success);
             if (allSuccess) {
                 setSendResult({
                     success: true,
                     message: `Đã gửi tín hiệu từ ô ${selectedCell} thành công đến tất cả server!`
                 });
-
+    
                 setCellStates(prev => ({
                     ...prev,
                     [selectedCell]: 'bg-success'
                 }));
-                console.log('✅ Gửi thành công!');
             } else {
                 const failedServers = results
                     .filter(result => !result.success)
                     .map(result => `${result.serverIP}${result.endpoint}: ${result.error}`)
                     .join(', ');
-
+    
                 setSendResult({
                     success: false,
                     message: `Gửi thất bại đến một số server: ${failedServers}`
                 });
-
+    
                 setCellStates(prev => ({
                     ...prev,
                     [selectedCell]: 'bg-danger'
                 }));
                 console.log('❌ Gửi thất bại:', failedServers);
             }
-
+    
             setTimeout(() => {
                 handleClose();
             }, 2000);
-
+    
             setTimeout(() => {
                 setCellStates(prev => ({
                     ...prev,
                     [selectedCell]: 'bg-info'
                 }));
             }, 4000);
-
+    
         } catch (error) {
             setSendResult({
                 success: false,
                 message: `Lỗi: ${error.message}`
             });
-
+    
             console.error("❌ Lỗi khi gửi dữ liệu:", error);
             setCellStates(prev => ({
                 ...prev,
                 [selectedCell]: 'bg-danger'
             }));
-
+    
             setTimeout(() => {
                 handleClose();
             }, 2000);
-
+    
             setTimeout(() => {
                 setCellStates(prev => ({
                     ...prev,
@@ -214,32 +228,30 @@ const GridDisplay = ({ gridData }) => {
         }
 
         const cells = [];
-        let totalCellsToShow;
 
-        // Xác định số ô cần hiển thị dựa trên currentKhu
-        if (currentKhu === 'SupplyAndDemand' || currentKhu === 'Demand') {
-            totalCellsToShow = 23; // Hiển thị 23 ô cho SupplyAndDemand và Demand
-        } else {
-            totalCellsToShow = 26; // Hiển thị 26 ô cho Supply
+        let totalCellsToShow; // Khai báo biến trước
+        if (currentKhu === 'SupplyAndDemand') {
+            totalCellsToShow = 22;
+        } else if (currentKhu === 'Supply') { // Thay bằng điều kiện cụ thể nếu có
+            totalCellsToShow = 26;
+        } else if (currentKhu === 'Demand') {
+            totalCellsToShow = 23;
         }
 
-        // Danh sách các ô bị vô hiệu hóa dựa trên currentKhu dựa trên Index
         const disabledCells = {
-            'SupplyAndDemand': [1, 2, 8, 9, 10, 11],
-            'Supply': [3, 4, 5, 6, 7, 12, 13, 14, 20, 21],
-            'Demand': [3, 4, 5, 6, 7, 11, 12, 13, 14, 17, 18]
+            'SupplyAndDemand': [],  // 1, 2, 8, 9, 10, 11
+            'Supply': [], // 3, 4, 5, 6, 7, 12, 13, 14, 20, 21
+            'Demand': []  // 3, 4, 5, 6, 7, 11, 12, 13, 14, 17, 18
         };
 
         for (let i = 1; i <= totalCellsToShow; i++) {
             const cellState = cellStates[i] || 'bg-info';
-            // Tìm dữ liệu tương ứng với ô từ taskData
             const cellData = taskData.find(item => item.cell === `cell-${i}`);
-            const cellValue = cellData ? cellData.value.taskOrderDetail[0]?.taskPath : i; // Hiển thị taskPath hoặc số ô nếu không có dữ liệu
+            const cellValue = cellData ? cellData.value.taskOrderDetail[0]?.taskPath : i;
 
             let cellLabel;
             let isDisabled = disabledCells[currentKhu] ? disabledCells[currentKhu].includes(i) : false;
 
-            // Logic hiển thị label cho từng khu vực
             if (currentKhu === 'SupplyAndDemand') {
                 if (i <= 14) {
                     cellLabel = `MS_${i.toString().padStart(2, '0')}`;
@@ -300,7 +312,6 @@ const GridDisplay = ({ gridData }) => {
                     >
                         <div>
                             <div>{cellLabel}</div>
-                            {/* <div style={{ fontSize: '12px' }}>{cellValue}</div> {} */}
                         </div>
                     </div>
                 </div>
