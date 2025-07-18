@@ -1,79 +1,67 @@
-﻿from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+﻿import app_config
+from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.staticfiles import StaticFiles
-from typing import List
-import json
-import os
-import time
-import redis
-from pymongo import MongoClient
-from bson import ObjectId
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import logging, time
+from app_config import settings
+from database.mongodb import MongoDBClient
+from database.redis import RedisClient
+from services.data_service import DataService
+from services.websocket import WebSocketManager
+from services.scheduler import SchedulerService
+from services.counter_service import CounterService
+from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+import uvicorn
+import asyncio
+import os
+import json
+from uvicorn import Config, Server
+import sys
 
-# Hàm chuyển đổi ObjectId thành string
-def convert_objectid_to_str(data):
-    if isinstance(data, list):
-        return [convert_objectid_to_str(item) for item in data]
-    elif isinstance(data, dict):
-        return {key: convert_objectid_to_str(value) if key != '_id' else str(value) for key, value in data.items()}
-    elif isinstance(data, ObjectId):
-        return str(data)
-    return data
+# Thiết lập logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Tải dữ liệu từ MongoDB và lưu vào Redis
-def load_data_to_redis():
-    print("🔄 Bắt đầu tải dữ liệu từ MongoDB vào Redis...")
+# Đọc config.json từ thư mục chứa main.exe
+def load_config():
+    if getattr(sys, 'frozen', False):
+        base_path = os.path.dirname(sys.executable)
+    else:
+        base_path = os.path.dirname(__file__)
+
+    config_path = os.path.join(base_path, "config.json")
     try:
-        redis_client.ping()
-        print("✅ Kết nối Redis thành công")
-        redis_client.flushdb()
-        print("🗑️ Đã xóa dữ liệu cũ trong Redis")
-
-        grid_history = list(grid_history_collection.find())
-        grid_history = convert_objectid_to_str(grid_history)
-        print(f"✅ Đã tải {len(grid_history)} bản ghi từ MongoDB (grid_history)")
-        redis_client.set("grid_history", json.dumps(grid_history, ensure_ascii=False) if grid_history else json.dumps([]))
-        print("✅ Đã lưu grid_history vào Redis")
-
-        task_path_supply_demand = list(task_path_supply_demand_collection.find())
-        task_path_supply_demand = convert_objectid_to_str(task_path_supply_demand)
-        print(f"✅ Đã tải {len(task_path_supply_demand)} bản ghi từ MongoDB (task_path_supply_demand)")
-        redis_client.set("task_path_supply_demand", json.dumps(task_path_supply_demand, ensure_ascii=False) if task_path_supply_demand else json.dumps([]))
-        print("✅ Đã lưu task_path_supply_demand vào Redis")
-
-        task_path_supply = list(task_path_supply_collection.find())
-        task_path_supply = convert_objectid_to_str(task_path_supply)
-        print(f"✅ Đã tải {len(task_path_supply)} bản ghi từ MongoDB (task_path_supply)")
-        redis_client.set("task_path_supply", json.dumps(task_path_supply, ensure_ascii=False) if task_path_supply else json.dumps([]))
-        print("✅ Đã lưu task_path_supply vào Redis")
-
-        task_path_demand = list(task_path_demand_collection.find())
-        task_path_demand = convert_objectid_to_str(task_path_demand)
-        print(f"✅ Đã tải {len(task_path_demand)} bản ghi từ MongoDB (task_path_demand)")
-        redis_client.set("task_path_demand", json.dumps(task_path_demand, ensure_ascii=False) if task_path_demand else json.dumps([]))
-        print("✅ Đã lưu task_path_demand vào Redis")
-
-        print("✅ Hoàn tất tải dữ liệu vào Redis")
+        with open(config_path, "r") as f:
+            config = json.load(f)
+        logger.info(f"Loaded config from config.json: {config}")
+        return config
     except Exception as e:
-        print(f"❌ Lỗi khi tải dữ liệu từ MongoDB vào Redis: {str(e)}")
-        redis_client.set("grid_history", json.dumps([]))
-        redis_client.set("task_path_supply_demand", json.dumps([]))
-        redis_client.set("task_path_supply", json.dumps([]))
-        redis_client.set("task_path_demand", json.dumps([]))
-        print("⚠ Đã đặt các key Redis về rỗng do lỗi")
+        logger.error(f"Failed to load config.json: {e}")
 
-# Lifespan handler - định nghĩa trước khi dùng trong app
+# Đọc cấu hình từ config.json
+config = load_config()
+
+# Ghi đè settings từ app_config
+settings.fastapi_host = config.get("fastapi_host", settings.fastapi_host)
+settings.fastapi_port = config.get("fastapi_port", settings.fastapi_port)
+settings.frontend_host = config.get("frontend_host", settings.frontend_host)
+settings.frontend_port = config.get("frontend_port", settings.frontend_port)
+settings.log_level = config.get("log_level", settings.log_level)
+
+# Server FastAPI chính (API, WebSocket, và giao diện tại /client-x)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 Server đang khởi động...")
-    load_data_to_redis()
+    logger.info("🚀 Server FastAPI đang khởi động...")
+    await data_service.load_to_redis()
+    scheduler.start()
     yield
-    print("🛑 Server đang tắt...")
+    scheduler.shutdown()
+    logger.info("🛑 Server FastAPI đang tắt...")
 
-# Khởi tạo app với lifespan
 app = FastAPI(lifespan=lifespan)
 
-# Thêm middleware CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -82,142 +70,191 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Kết nối với MongoDB
-mongo_client = MongoClient("mongodb://localhost:27017/")
-db = mongo_client["grid_system"]
-grid_history_collection = db["grid_history"]
-task_path_supply_demand_collection = db["task_path_supply_demand"]
-task_path_supply_collection = db["task_path_supply"]
-task_path_demand_collection = db["task_path_demand"]
+# Server tĩnh để phục vụ giao diện React tại frontend_app
+frontend_app = FastAPI()
+frontend_app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# Kết nối với Redis
-redis_client = redis.Redis(host="localhost", port=6379, db=0)
+print("Current working directory:", os.getcwd())
+print("Does 'dist' exist?", os.path.exists("dist"))
+print("Files in current directory:", os.listdir("."))
+if os.path.exists("dist"):
+    print("Files in dist:", os.listdir("dist"))
+else:
+    print("dist directory is missing!")
+# Mount thư mục chứa file tĩnh của React (dist/) tại gốc (/)
+# frontend_app.mount("/", StaticFiles(directory=".", html=True), name="static")
 
-# Các endpoint
+# Khởi tạo MongoDB và Redis
+mongo_client = MongoDBClient(settings.mongodb_url, settings.database_name)
+redis_client = RedisClient(settings.redis_url)
+counter_service = CounterService(mongo_client)
+data_service = DataService(mongo_client, redis_client)
+websocket_manager = WebSocketManager()
+scheduler = SchedulerService(data_service, websocket_manager, mongo_client)
+
+# Mount giao diện tại /client-x
+# app.mount("/client-x", StaticFiles(directory=settings.static_dir, html=True), name="client-x")
+
+# API và WebSocket endpoints
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    connected_clients.append(websocket)
-    print(f"🔗 Client đã kết nối. Tổng client: {len(connected_clients)}")
-    try:
-        while True:
-            data = await websocket.receive_text()
-            print(f"📩 Nhận từ client: {data}")
-            for client in connected_clients:
-                if client != websocket:
-                    try:
-                        await client.send_text(data)
-                    except Exception as e:
-                        print(f"⚠ Lỗi khi gửi WebSocket: {e}")
-                        connected_clients.remove(client)
-    except WebSocketDisconnect:
-        connected_clients.remove(websocket)
-        print(f"🔴 Client ngắt kết nối. Tổng client còn lại: {len(connected_clients)}")
+    await websocket_manager.connect(websocket)
+    await websocket_manager.handle_client(websocket)
 
 @app.get("/get-task-data/{khu}")
 async def get_task_data(khu: str):
-    start_time = time.time()
     try:
-        # Chuẩn hóa key để khớp với Redis
-        khu_normalized = khu.lower()
-        if khu_normalized == "supplyanddemand":
-            key = "task_path_supply_demand"
-        elif khu_normalized == "supply":
-            key = "task_path_supply"
-        elif khu_normalized == "demand":
-            key = "task_path_demand"
-        else:
-            key = f"task_path_{khu_normalized}"  # Dự phòng cho các khu khác
-        
-        print(f"🔍 Truy xuất dữ liệu từ Redis với key: {key}")
-        task_data_json = redis_client.get(key)
-        if task_data_json is None:
-            print(f"⚠ Không tìm thấy dữ liệu cho key {key}")
-            return {"status": "success", "data": []}
-        task_data = json.loads(task_data_json)
-        duration = time.time() - start_time
-        print(f"✅ Đã lấy {len(task_data)} bản ghi từ Redis, mất {duration:.4f} giây")
-        return {"status": "success", "data": task_data}
-    except redis.ConnectionError as e:
-        print(f"❌ Lỗi kết nối Redis: {str(e)}")
-        return {"status": "error", "message": str(e)}
+        data = data_service.get_task_data(khu)
+        return {"status": "success", "data": data}
     except Exception as e:
-        print(f"❌ Lỗi khác trong get_task_data: {str(e)}")
+        logger.error(f"Lỗi khi lấy dữ liệu {khu}: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.get("/get-grid-history")
 async def get_grid_history():
-    try:
-        grid_history_json = redis_client.get("grid_history")
-        if grid_history_json:
-            grid_history = json.loads(grid_history_json)
-        else:
-            grid_history = []
-        return {"status": "success", "data": grid_history}
-    except Exception as e:
-        print(f"❌ Lỗi khi lấy dữ liệu từ Redis: {str(e)}")
-        return {"status": "error", "message": str(e)}
+    return data_service.get_grid_history()
 
 @app.get("/getOrderCount")
 async def get_order_count():
     try:
-        grid_history_json = redis_client.get("grid_history")
-        if grid_history_json:
-            grid_history = json.loads(grid_history_json)
-        else:
-            grid_history = []
-        return {"orderCount": len(grid_history) + 1}
+        # Lấy giá trị order_count từ MongoDB
+        counter_value = counter_service.increment_and_get_counter() - 1  # Trừ 1 vì đã tăng trước đó
+        return {"status": "success", "orderCount": counter_value}
     except Exception as e:
-        print(f"❌ Lỗi khi lấy orderCount: {str(e)}")
+        logger.error(f"Lỗi khi lấy order_count: {str(e)}")
         return {"status": "error", "message": str(e)}
+
+@app.get("/getServerToClientRequestCount")
+async def get_request_count(date: Optional[str] = None, days: Optional[int] = None):
+    stats = await data_service.get_stats(date, days)
+    return {
+        "status": "success",
+        "totalOrders": stats["totalOrders"],
+        "weeklyTotal": stats["weeklyTotal"],
+        "monthlyTotal": stats["monthlyTotal"],
+        "statusCounts": stats["statusCounts"]
+    }
+
+@app.get("/getRecentRequests")
+async def get_recent_requests():
+    return data_service.get_recent_requests()
+
+@app.get("/getStatusCounts")
+async def get_status_counts():
+    return data_service.get_status_counts()
+
+@app.get("/health-check")
+async def health_check():
+    return {"status": "OK", "timestamp": time.time()}
+
+@app.post("/getAlarmMessage")
+async def get_alarm_message():
+    return data_service.get_alarm_message()
+
+def should_store_data(data: dict) -> bool:
+    """Kiểm tra xem dữ liệu có nên được lưu vào MongoDB không."""
+    return "status" not in data
 
 @app.post("/submit-data")
-async def submit_data(data: dict):
+async def submit_data(data: dict): 
+    logger.info(f"Dữ liệu nhận được qua /submit-data: {data}")    
     try:
-        grid_history_json = redis_client.get("grid_history")
-        if grid_history_json:
-            grid_history = json.loads(grid_history_json)
-        else:
-            grid_history = []
-
-        cell_id = data.get("cell", None)
-        if cell_id is not None:
-            for entry in grid_history:
-                if entry.get("cell") == cell_id:
-                    entry.update(data)
-                    break
-            else:
-                grid_history.append(data)
-        else:
-            grid_history.append(data)
-
-        # Chuyển đổi ObjectId thành chuỗi trước khi lưu
-        grid_history = convert_objectid_to_str(grid_history)
-        redis_client.set("grid_history", json.dumps(grid_history, ensure_ascii=False))
-        grid_history_collection.drop()
-        if grid_history:
-            grid_history_collection.insert_many(grid_history)
-
-        message_json = json.dumps({"received_data": data}, ensure_ascii=False)
-        for client in connected_clients:
-            try:
-                await client.send_text(message_json)
-            except Exception as e:
-                print(f"⚠ Lỗi khi gửi WebSocket: {e}")
-                connected_clients.remove(client)
-
-        return {
-            "status": "success",
-            "message": "Dữ liệu đã được nhận và xử lý thành công",
-            "data_id": len(grid_history)
-        }
+        processed_data = mongo_client.convert_objectid_to_str(data)
+        
+        # Không lưu vào server_to_client_requests nếu dữ liệu có status
+        if should_store_data(processed_data):
+            result = data_service.submit_data(processed_data)
+            if result["status"] == "success":
+                logger.debug(f"Dữ liệu trước khi broadcast: {processed_data}")
+                await websocket_manager.broadcast(processed_data, mongo_client, store=True)
+                return result
+            return {
+                "status": "error",
+                "message": result.get("message", "Lỗi khi lưu dữ liệu")
+            }
+        
+        logger.debug(f"Dữ liệu có status, chỉ broadcast: {processed_data}")
+        await websocket_manager.broadcast(processed_data, mongo_client, store=False)
+        return {"status": "success", "message": "Dữ liệu được broadcast"}
+    
     except Exception as e:
-        print(f"❌ Lỗi khi xử lý dữ liệu: {str(e)}")
-        return {"status": "error", "message": str(e)}
+        logger.error(f"Lỗi trong submit-data: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Lỗi server: {str(e)}"
+        }
 
-# Mount static files
-static_dir = "E:/thadosoftcaller.client_26_3/thadosoftcaller.client/UI_28_3/UI_28_3/static"
-app.mount("/client-x", StaticFiles(directory=static_dir, html=True), name="client-x")
+# Endpoint /submit-task
+class TaskOrderDetail(BaseModel):
+    taskPath: str
 
-# Danh sách các client WebSocket
-connected_clients: List[WebSocket] = []
+class TaskData(BaseModel):
+    fromSystem: Optional[str] = None
+    modelProcessCode: Optional[str] = None
+    orderId: Optional[str] = None
+    taskOrderDetail: Optional[List[TaskOrderDetail]] = None
+    cell: Optional[str] = None
+    area: Optional[str] = None
+
+@app.post("/submit-task")
+async def submit_task(data: TaskData):
+    try:
+        cleaned_data = mongo_client.convert_objectid_to_str(data.dict())
+        result = data_service.submit_data(cleaned_data)
+        if result["status"] == "success":
+            await websocket_manager.broadcast(cleaned_data, mongo_client)
+        return result
+    except Exception as e:
+        logger.error(f"Lỗi trong submit-task: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Lỗi server: {str(e)}"
+        }
+
+# Endpoint để frontend lấy config
+@app.get("/config")
+async def get_config():
+    return {
+        "fastapi_host": config["fastapi_host"],
+        "fastapi_port": config["fastapi_port"]
+    }
+
+# Hàm chạy server
+async def run_servers():
+    # Server FastAPI (API, WebSocket, và giao diện tại /client-x)
+    fastapi_config = Config(
+        app=app,
+        host=settings.fastapi_host,
+        port=settings.fastapi_port,
+        log_level=settings.log_level.lower()
+    )
+    fastapi_server = Server(fastapi_config)
+
+    # Server frontend (giao diện tại /)
+    frontend_config = Config(
+        app=frontend_app,
+        host=settings.frontend_host,
+        port=settings.frontend_port,
+        log_level=settings.log_level.lower()
+    )
+    frontend_server = Server(frontend_config)
+
+    # Chạy cả hai server đồng thời
+    await asyncio.gather(
+        fastapi_server.serve(),
+        frontend_server.serve()
+    )
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(run_servers())
+    except Exception as e:
+        logging.error(f"Không thể chạy server: {str(e)}")
+        logging.error("Vui lòng kiểm tra cổng hoặc thay đổi fastapi_port trong config.json.")
+        input("Press Enter to exit...")

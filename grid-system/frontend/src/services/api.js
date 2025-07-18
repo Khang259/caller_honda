@@ -1,6 +1,7 @@
 ﻿export const defaultServers = [
-    { serverIP: '127.0.0.1:8000', endpoint: '/submit-data' },
-    { serverIP: '127.0.0.1:7000', endpoint: '/ics/taskOrder/addTask' }
+    { serverIP: '192.168.1.7:8000', endpoint: '/submit-data' },
+    { serverIP: '127.0.0.1:7000', endpoint: '/ics/taskOrder/addTask' },
+    { serverIP: '127.0.0.1:7000', endpoint: '/ics/out/endTask ' }
 ];
 
 export const sendData = async (customData = null, cell = null, khu = null, additionalData = null, servers = null, serverIPs = null) => {

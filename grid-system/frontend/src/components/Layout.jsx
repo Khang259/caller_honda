@@ -16,14 +16,15 @@ const Layout = ({ children }) => {
         <div className="d-flex flex-column min-vh-100 w-100">
             <Navbar bg="dark" variant="dark" expand="lg" className="w-100">
                 <div className="container-fluid">
-                    <Navbar.Brand as={Link} to="/">Quản lý khu vực</Navbar.Brand>
+                    {/* <Navbar.Brand as={Link} to="/">Quản lý khu vực</Navbar.Brand> */}
+                    <Navbar.Brand to="/">Quản lý khu vực</Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav">
                         <Nav className="me-auto">
                             <Nav.Link as={Link} to="/SupplyAndDemand" className="mx-1">Cấp & Trả hàng</Nav.Link>
                             <Nav.Link as={Link} to="/Supply" className="mx-1">Cấp hàng</Nav.Link>
-                            <Nav.Link as={Link} to="/Demand" className="mx-1">Trả hàng</Nav.Link>
-                            <Nav.Link as={Link} to="/history" className="mx-1">Lịch sử</Nav.Link>
+                            <Nav.Link as={Link} to="/Demand" className="mx-1">Trả trống</Nav.Link>
+                            {/* <Nav.Link as={Link} to="/history" className="mx-1">Lịch sử</Nav.Link> */}
                             {currentUser && isAdmin() && (
                                 <Nav.Link as={Link} to="/settings" className="mx-1">Cài đặt</Nav.Link>
                             )}

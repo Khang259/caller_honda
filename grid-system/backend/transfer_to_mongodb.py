@@ -7,9 +7,9 @@ db = mongo_client["grid_system"]
 
 # Đường dẫn đến các file JSON
 json_files = {
-    "task_path_supply_demand": "E:/thadosoftcaller.client_26_3/thadosoftcaller.client/grid-system/frontend/public/task_path_supply_demand.json",
-    "task_path_supply": "E:/thadosoftcaller.client_26_3/thadosoftcaller.client/grid-system/frontend/public/task_path_supply.json",
-    "task_path_demand": "E:/thadosoftcaller.client_26_3/thadosoftcaller.client/grid-system/frontend/public/task_path_demand.json"
+    "task_path_supply_demand": "D:/Honda/thadosoftcaller.client_29_4/thadosoftcaller.client_21_4/thadosoftcaller.client_21_4/thadosoftcaller.client/grid-system/backend/dist/task_path_supply_demand.json",
+    "task_path_supply": "D:/Honda/thadosoftcaller.client_29_4/thadosoftcaller.client_21_4/thadosoftcaller.client_21_4/thadosoftcaller.client/grid-system/backend/dist/task_path_supply.json",
+    "task_path_demand": "D:/Honda/thadosoftcaller.client_29_4/thadosoftcaller.client_21_4/thadosoftcaller.client_21_4/thadosoftcaller.client/grid-system/backend/dist/task_path_demand.json"
 }
 
 # Chuyển dữ liệu từ file JSON sang MongoDB

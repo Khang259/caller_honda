@@ -8,11 +8,7 @@ export const useHistory = () => useContext(HistoryContext);
 
 // Provider Component
 export const HistoryProvider = ({ children }) => {
-    const [history, setHistory] = useState([
-        { id: 1, timestamp: '2025-03-14 09:15', action: 'Cấu hình đã lưu', khu: 'KHU 4' },
-        { id: 2, timestamp: '2025-03-14 08:30', action: 'Kết nối máy chủ', khu: 'KHU 5' },
-        { id: 3, timestamp: '2025-03-13 16:45', action: 'Khởi phục mặc định', khu: 'KHU 4' }
-    ]);
+    const [history, setHistory] = useState([]);
 
     // Thêm mục mới vào lịch sử
     const addHistory = (action, khu = '') => {
