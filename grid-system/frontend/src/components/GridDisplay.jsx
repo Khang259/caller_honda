@@ -10,6 +10,8 @@ import { fetchTaskData } from '../services/grid';
 import { sendTaskSignal, cancelTaskSignal } from '../services/task';
 import { sendData } from '../services/api';
 import { formatCellLabel } from '../utils/format';
+import { fetchConfig } from '../services/config';
+import ContextMenu from './ContextMenu';
 
 const GridDisplay = ({ gridData }) => {
   const { currentUser, isAdmin } = useAuth();
@@ -28,6 +30,12 @@ const GridDisplay = ({ gridData }) => {
   const [loading, setLoading] = useState(true);
   const [isConfigLoading, setIsConfigLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [gridConfig, setGridConfig] = useState(null);
+  const [contextMenu, setContextMenu] = useState({
+    show: false,
+    cellData: null,
+    position: { x: 0, y: 0 }
+  });
 
   const latestKhuRef = useRef(activeKhu);
   const validKhus = ['SupplyAndDemand', 'Supply', 'Demand'];
@@ -77,15 +85,33 @@ const GridDisplay = ({ gridData }) => {
       }
 
       try {
+        // Load config từ MongoDB
+        if (finalServerIP && !gridConfig) {
+          try {
+            const configData = await fetchConfig(finalServerIP);
+            setGridConfig(configData);
+            console.log('✅ Config từ MongoDB:', configData);
+          } catch (configError) {
+            console.warn('⚠️ Không thể load config từ MongoDB, sử dụng config local:', configError);
+            // Fallback to local config
+            const localConfig = {
+              SupplyAndDemandConfig: { cells: 22 },
+              SupplyConfig: { cells: 30 },
+              DemandConfig: { cells: 24 }
+            };
+            setGridConfig(localConfig);
+          }
+        }
+
         const data = await fetchTaskData(finalServerIP, currentKhu);
         if (latestKhuRef.current === khuAtStart) {
           setTaskData(data);
-          console.log(`✅ Dữ liệu từ Redis (${currentKhu}):`, data);
+          console.log(`✅ Dữ liệu từ MongoDB (${currentKhu}):`, data);
         }
       } catch (error) {
-        console.error(`❌ Lỗi khi tải dữ liệu từ Redis (${khuAtStart}):`, error);
+        console.error(`❌ Lỗi khi tải dữ liệu từ MongoDB (${khuAtStart}):`, error);
         if (latestKhuRef.current === khuAtStart) {
-          setError(`Không thể tải dữ liệu: ${error.message}`);
+          setError(`Không thể tải dữ liệu từ MongoDB: ${error.message}`);
           setTaskData([]);
         }
       } finally {
@@ -96,12 +122,41 @@ const GridDisplay = ({ gridData }) => {
     };
 
     loadTaskData();
-  }, [currentKhu, serverIPs]);
+  }, [currentKhu, serverIPs, gridConfig]);
 
   const handleCellClick = (cellNumber) => {
     console.log(`🖱️ Ô được chọn: cell-${cellNumber}`);
     setSelectedCell(cellNumber);
     setShowModal(true);
+  };
+
+  const handleCellRightClick = (e, cellNumber) => {
+    e.preventDefault();
+    const cellData = taskData.find(item => item.cell === `cell-${cellNumber}`);
+    
+    setContextMenu({
+      show: true,
+      cellData: cellData,
+      position: { x: e.clientX, y: e.clientY }
+    });
+  };
+
+  const handleContextMenuHide = () => {
+    setContextMenu(prev => ({ ...prev, show: false }));
+  };
+
+  const handleUpdateSuccess = () => {
+    // Reload data after update/delete
+    const loadTaskData = async () => {
+      try {
+        const data = await fetchTaskData(effectiveServerIP, currentKhu);
+        setTaskData(data);
+        console.log(`✅ Dữ liệu đã được cập nhật (${currentKhu}):`, data);
+      } catch (error) {
+        console.error(`❌ Lỗi khi reload dữ liệu:`, error);
+      }
+    };
+    loadTaskData();
   };
 
   const handleClose = () => {
@@ -121,7 +176,12 @@ const GridDisplay = ({ gridData }) => {
     try {
       const selectedData = taskData.find(item => item.cell === `cell-${selectedCell}`);
       if (!selectedData) {
-        throw new Error(`Không thể tìm thấy dữ liệu cho ô ${selectedCell}`);
+        // Kiểm tra xem có dữ liệu nào trong taskData không
+        if (taskData.length === 0) {
+          throw new Error(`Không có dữ liệu trong MongoDB cho khu vực ${currentKhu}. Vui lòng kiểm tra lại sau.`);
+        } else {
+          throw new Error(`Không tìm thấy dữ liệu cho ô ${selectedCell} trong MongoDB. Có thể ô này chưa được cập nhật.`);
+        }
       }
 
       const result = await sendTaskSignal(
@@ -231,12 +291,37 @@ const GridDisplay = ({ gridData }) => {
   };
 
   const renderGrid = () => {
-    if (loading) return <div className="text-center">Đang tải dữ liệu...</div>;
+    if (loading) return <div className="text-center">Đang tải dữ liệu từ MongoDB...</div>;
     if (error) return <div className="text-danger text-center">Lỗi: {error}</div>;
+    if (!taskData || taskData.length === 0) {
+      return (
+        <div className="text-center text-muted">
+          <div className="mb-2">
+            <i className="bi bi-database-x fs-1"></i>
+          </div>
+          <div>Không có dữ liệu trong MongoDB cho khu vực {khuMap[currentKhu]}</div>
+          <div className="small">Dữ liệu sẽ được hiển thị khi có hoạt động trong khu vực này</div>
+        </div>
+      );
+    }
 
     const cells = [];
-    let totalCellsToShow = currentKhu === 'SupplyAndDemand' ? 22 :
-                          currentKhu === 'Supply' ? 30 : 24;
+    
+    // Lấy số ô từ config MongoDB hoặc fallback về giá trị mặc định
+    let totalCellsToShow = 22; // Default fallback
+    if (gridConfig) {
+      if (currentKhu === 'SupplyAndDemand' && gridConfig.SupplyAndDemandConfig) {
+        totalCellsToShow = gridConfig.SupplyAndDemandConfig.cells || 22;
+      } else if (currentKhu === 'Supply' && gridConfig.SupplyConfig) {
+        totalCellsToShow = gridConfig.SupplyConfig.cells || 30;
+      } else if (currentKhu === 'Demand' && gridConfig.DemandConfig) {
+        totalCellsToShow = gridConfig.DemandConfig.cells || 24;
+      }
+    } else {
+      // Fallback to hardcoded values if no config
+      totalCellsToShow = currentKhu === 'SupplyAndDemand' ? 22 :
+                        currentKhu === 'Supply' ? 30 : 24;
+    }
 
     const disabledCells = { 'SupplyAndDemand': [], 'Supply': [], 'Demand': [] };
 
@@ -252,6 +337,7 @@ const GridDisplay = ({ gridData }) => {
             id={`cell-${i}`}
             className={`text-white grid-cell ${isDisabled ? 'disabled' : ''}`}
             onClick={() => !isDisabled && handleCellClick(i)}
+            onContextMenu={(e) => !isDisabled && handleCellRightClick(e, i)}
             style={{
               backgroundColor: cellState.startsWith('bg-') ? undefined : cellState,
               height: '80px',
@@ -288,6 +374,16 @@ const GridDisplay = ({ gridData }) => {
         <Card.Body>
           <div className="mb-3">
             <strong>Server:</strong> {effectiveServerIP || 'Chưa cấu hình'}
+            {taskData && taskData.length > 0 && (
+              <span className="badge bg-success ms-2">
+                {taskData.length} ô có dữ liệu
+              </span>
+            )}
+            {(!taskData || taskData.length === 0) && !loading && !error && (
+              <span className="badge bg-warning ms-2">
+                Chưa có dữ liệu
+              </span>
+            )}
           </div>
           {currentUser && (
             <div className="mb-3">
@@ -355,6 +451,17 @@ const GridDisplay = ({ gridData }) => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Context Menu */}
+      <ContextMenu
+        show={contextMenu.show}
+        onHide={handleContextMenuHide}
+        cellData={contextMenu.cellData}
+        currentKhu={currentKhu}
+        serverIPs={serverIPs}
+        onUpdateSuccess={handleUpdateSuccess}
+        position={contextMenu.position}
+      />
     </div>
   );
 };

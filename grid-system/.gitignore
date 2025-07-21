@@ -1,0 +1,8 @@
+# Bỏ qua file build Electron
+dist/
+dist-electron/
+*.exe
+*.dmg
+*.AppImage
+*.msi
+*.zip

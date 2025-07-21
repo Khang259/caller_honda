@@ -1,6 +1,7 @@
 ﻿// src/contexts/SettingsContext.jsx
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { saveUserConfig, loadUserConfig, sendLogToServer } from '../services/settings';
+import { fetchConfig, saveConfig } from '../services/config';
 
 const SettingsContext = createContext();
 
@@ -56,10 +57,26 @@ export const SettingsProvider = ({ children }) => {
         SupplyConfig,
         DemandConfig
       };
+      
+      // Lưu vào localStorage
       await saveUserConfig(newConfig);
       setServerIPs(newServerIPs);
-      setShowAlert(true);
-      setAlertMessage('Đã lưu cấu hình thành công!');
+      
+      // Lưu vào MongoDB nếu có server IP
+      if (newServerIPs.length > 0) {
+        try {
+          await saveConfig(newServerIPs[0], newConfig);
+          setShowAlert(true);
+          setAlertMessage('Đã lưu cấu hình thành công vào MongoDB!');
+        } catch (mongoError) {
+          console.warn('Không thể lưu vào MongoDB:', mongoError);
+          setShowAlert(true);
+          setAlertMessage('Đã lưu cấu hình local, nhưng không thể lưu vào MongoDB!');
+        }
+      } else {
+        setShowAlert(true);
+        setAlertMessage('Đã lưu cấu hình thành công!');
+      }
     } catch (error) {
       setShowAlert(true);
       setAlertMessage(`Lỗi khi lưu cấu hình: ${error.message}`);
@@ -83,15 +100,16 @@ export const SettingsProvider = ({ children }) => {
     };
     const [config, setConfig] = configMap[khu];
     const newConfig = { ...config, [field]: newValue };
-    if (field !== 'cells') {
-      newConfig.cells = newConfig.rows * newConfig.columns;
-    } else {
-      newConfig.cells = Math.min(newValue, newConfig.rows * newConfig.columns);
+    
+    // Chỉ cập nhật cells khi thay đổi rows/columns và cells chưa được set thủ công
+    if (field === 'rows' || field === 'columns') {
+      // Nếu cells chưa được set thủ công (bằng với rows * columns), thì tự động cập nhật
+      if (config.cells === config.rows * config.columns) {
+        newConfig.cells = newConfig.rows * newConfig.columns;
+      }
     }
+    
     setConfig(newConfig);
-    if (field !== 'cells') {
-      updateGridData(khu, newConfig.rows, newConfig.columns);
-    }
   };
 
   const value = {

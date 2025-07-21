@@ -38,11 +38,10 @@ export const sendTaskSignal = async (
   }
 
   const newOrderId = `Superlification_${orderCount}`;
-  console.log('newOrderId:', newOrderId);
 
   const reorderedData = {
-    modelProcessCode: jsonData.modelProcessCode || '1302',
-    fromSystem: jsonData.fromSystem || 'thadosoft',
+    modelProcessCode: jsonData.modelProcessCode || 'None',
+    fromSystem: jsonData.fromSystem || 'None',
     orderId: newOrderId,
     taskOrderDetail: jsonData.taskOrderDetail || [{ taskPath: '' }],
   };

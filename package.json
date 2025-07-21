@@ -12,21 +12,31 @@
     "preview": "vite preview",
     "electron": "concurrently \"npm run dev\" \"wait-on http://localhost:5174 && electron .\"",
     "clean": "rimraf dist grid-system/frontend/dist dist-electron",
-    "package": "npm run clean && npm run build-vite && electron-builder --win --x64 --publish never"
+    "package": "npm run clean && npm run build-vite && electron-builder --win --x64 --publish never",
+    "test": "jest"
   },
   "dependencies": {
+    "@playwright/test": "^1.51.1",
     "bootstrap": "^5.3.3",
+    "chart.js": "^4.4.8",
+    "date-fns": "^4.1.0",
     "react": "^18.2.0",
     "react-bootstrap": "^2.8.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.9.0"
+    "react-router-dom": "^6.9.0",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
+    "@babel/plugin-transform-modules-commonjs": "^7.26.3",
+    "@babel/preset-env": "^7.26.9",
     "@vitejs/plugin-react": "^4.3.4",
+    "babel-jest": "^29.7.0",
     "concurrently": "^8.0.0",
     "copyfiles": "^2.4.1",
     "electron": "25.0.0",
     "electron-builder": "^25.1.8",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
     "mkdirp": "^3.0.1",
     "rimraf": "^6.0.1",
     "vite": "^6.2.3",

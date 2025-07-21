@@ -3,7 +3,7 @@ from apscheduler.triggers.cron import CronTrigger
 import logging
 import pytz
 from datetime import datetime, timedelta
-from app_config import settings
+from config import config
 
 logger = logging.getLogger(__name__)
 

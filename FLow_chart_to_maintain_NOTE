@@ -1,0 +1,201 @@
+DỰ ÁN của bạn là một ứng dụng React sử dụng Vite, với các thành phần chính:
+    Components: Hiển thị giao diện (UI) và xử lý sự kiện người dùng.
+
+    Contexts: Quản lý trạng thái toàn cục (state) và cung cấp dữ liệu/logic.
+
+    Services: Xử lý logic nghiệp vụ (fetch dữ liệu, gửi tín hiệu, lưu cấu hình).
+
+    Pages: Container cho các route, kết nối components và contexts.
+
+
+I.LUỒNG HOẠT ĐỘNG: HIỂN THỊ LƯỚI VÀ GỬI DỮ LIỆU.
+
+[App.jsx]
+   |
+   | (render)
+   v
+[SupplyAndDemand.jsx] --> [GridDisplay.jsx]
+   |                           |
+   | (useSettings)             | (useTasks, useHistory, useAuth)
+   v                           v
+[SettingsContext.jsx]    [TaskContext.jsx, HistoryContext.jsx, AuthContext.jsx]
+   |                           |
+   | (cung cấp serverIPs,     | (cung cấp sentTasks, addTask, addHistory, currentUser)
+   |  activeKhu, configs)     |
+   |                           |
+   | (fetch dữ liệu khi        |
+   |  activeKhu/serverIPs     |
+   |  thay đổi)               |
+   v                           |
+[services/grid.js]            |
+   | (fetchTaskData)           |
+   v                           |
+[Server]                     |
+   | (trả về taskData)        |
+   v                           |
+[GridDisplay.jsx]            |
+   | (render lưới ô với       |
+   |  cellLabel: MS_01,...)   |
+   |                           |
+   | (người dùng click ô)     |
+   v                           |
+[GridDisplay.jsx]            |
+   | (handleCellClick)        |
+   | (mở modal xác nhận)      |
+   |                           |
+   | (người dùng nhấn "Gửi")  |
+   v                           |
+[services/task.js]           |
+   | (sendTaskSignal)          |
+   | (gửi tín hiệu đến server)|
+   | (cập nhật task, history) |
+   v                           |
+[Server]                     |
+   | (xử lý tín hiệu)          |
+   v                           |
+[GridDisplay.jsx]            |
+   | (hiển thị kết quả)        |
+   v
+[TaskList.jsx] (hiển thị danh sách task)
+
+GIẢI THÍCH CHI TIẾT
+1.Khởi tạo ứng dụng (App.jsx):
+    App.jsx là entry point, render các route (dùng react-router).
+
+    Route /supply-and-demand render SupplyAndDemand.jsx.
+
+2.Render khu vực (SupplyAndDemand.jsx):
+    SupplyAndDemand.jsx là page container, gọi GridDisplay.jsx và truyền gridData (nếu có).
+
+3.Khởi tạo dữ liệu (GridDisplay.jsx):
+    GridDisplay.jsx sử dụng các context:
+        useSettings: Lấy serverIPs, activeKhu, SupplyAndDemandConfig, v.v.
+
+        useTasks: Lấy sentTasks, addTask, toggleTask.
+
+        useHistory: Lấy addHistory.
+
+        useAuth: Lấy currentUser, isAdmin.
+
+    Khi activeKhu hoặc serverIPs thay đổi, useEffect trong GridDisplay.jsx gọi fetchTaskData từ services/grid.js.
+
+4.Fetch dữ liệu (services/grid.js):
+    fetchTaskData gửi yêu cầu GET đến server (ví dụ: http://<serverIP>/get-task-data/SupplyAndDemand).
+
+    Server trả về taskData → GridDisplay.jsx cập nhật state taskData.
+
+5.Hiển thị lưới ô (GridDisplay.jsx):
+    renderGrid tạo các ô với cellLabel (ví dụ: MS_01, PA_01).
+
+    Người dùng click vào ô → gọi handleCellClick → mở modal xác nhận.
+
+6.Gửi tín hiệu (services/task.js):
+    Người dùng nhấn "Gửi tín hiệu" trong modal → gọi handleSendSignal.
+
+    handleSendSignal gọi sendTaskSignal từ services/task.js.
+
+    sendTaskSignal:
+        Tạo orderId mới bằng cách fetch /getOrderCount.
+
+        Gửi tín hiệu đến server qua sendData (từ services/api.js).
+
+        Cập nhật sentTasks (qua addTask) và lịch sử (qua addHistory).
+
+        Cập nhật trạng thái ô (màu xanh nếu thành công, đỏ nếu lỗi).
+
+7.Hiển thị danh sách task (TaskList.jsx):
+    TaskList.jsx hiển thị danh sách sentTasks từ TaskContext.
+
+    Người dùng có thể toggle task hoặc hủy tín hiệu (handleCancelSignal → gọi cancelTaskSignal từ services/task.js).
+
+
+II. LUỒNG HOẠT ĐỘNG: CẬP NHẬT CẤU HÌNH.
+
+[App.jsx]
+   |
+   | (render)
+   v
+[Settings.jsx] --> [SettingsForm.jsx]
+   |                   |
+   | (useSettings)     | (người dùng nhập IP, rows, columns)
+   v                   v
+[SettingsContext.jsx]  |
+   | (cung cấp serverIPs, configs, handleSaveConfig)
+   |                   |
+   | (người dùng thay đổi rows/columns)
+   |                   v
+   | [services/settings.js]
+   |    | (updateGridData)
+   |    | (lưu gridData vào localStorage)
+   |    v
+   | [SettingsForm.jsx]
+   |    | (người dùng nhấn "Lưu cấu hình")
+   |    v
+   | [SettingsContext.jsx]
+   |    | (handleSaveConfig)
+   |    v
+   | [services/settings.js]
+   |    | (saveUserConfig)
+   |    | (lưu serverIPs, configs vào localStorage)
+   |    v
+   | [SettingsForm.jsx]
+   |    | (hiển thị thông báo "Đã lưu thành công")
+   v
+[GridDisplay.jsx] (tự động cập nhật khi serverIPs thay đổi)
+
+
+Giải thích chi tiết
+1.Khởi tạo trang cài đặt (Settings.jsx):
+    Settings.jsx là page container, gọi SettingsForm.jsx.
+
+2.Hiển thị form cài đặt (SettingsForm.jsx):
+    SettingsForm.jsx sử dụng useSettings để lấy:
+        serverIPs, inputServerIP, SupplyAndDemandConfig, v.v.
+
+        handleSaveConfig, handleReset.
+
+    Người dùng nhập IP, số hàng (rows), số cột (columns).
+
+3.Cập nhật grid data (services/settings.js):
+    Khi người dùng thay đổi rows hoặc columns (ví dụ: handleSupplyAndDemandRowsChange):
+        Gọi updateGridData từ services/settings.js.
+
+        updateGridData lưu gridData mới vào localStorage (dựa trên khu).
+
+4.Lưu cấu hình (SettingsContext.jsx và services/settings.js):
+    Người dùng nhấn "Lưu cấu hình" → gọi handleSaveConfig từ SettingsContext.
+
+    handleSaveConfig:
+        Cập nhật serverIPs từ inputServerIP.
+
+        Gọi saveUserConfig từ services/settings.js để lưu vào localStorage.
+
+        Hiển thị thông báo "Đã lưu thành công".
+
+5.Tác động đến GridDisplay.jsx:
+    Khi serverIPs thay đổi, useEffect trong GridDisplay.jsx tự động chạy lại → fetch dữ liệu mới và cập nhật lưới ô.
+
+BIG NOTE !!!:
+
+TÁCH BIỆT TRÁCH NHIỆM
+
+- GridDisplay.jsx, SettingsForm.jsx: Chỉ xử lý UI và sự kiện người dùng.
+
+- services/grid.js, services/task.js, services/settings.js: Xử lý logic nghiệp vụ.
+
+- SettingsContext.jsx, TaskContext.jsx: Quản lý state toàn cục.
+
+DỄ DEBUG
+
+- Nếu lỗi xảy ra khi gửi tín hiệu → kiểm tra services/task.js.
+
+- Nếu lỗi khi lưu cấu hình → kiểm tra services/settings.js hoặc SettingsContext.jsx.
+
+MỞ RỘNG
+
+- Muốn thêm logic gửi tín hiệu mới → chỉnh services/task.js.
+
+- Muốn thêm trường cấu hình mới → chỉnh SettingsContext.jsx và services/settings.js.
+
+
+

@@ -1,11 +1,10 @@
 ﻿export const defaultServers = [
-    { serverIP: '192.168.1.7:8000', endpoint: '/submit-data' },
+    { serverIP: '127.0.0.1:7000', endpoint: '/submit-data' },
     { serverIP: '127.0.0.1:7000', endpoint: '/ics/taskOrder/addTask' },
     { serverIP: '127.0.0.1:7000', endpoint: '/ics/out/endTask ' }
 ];
 
 export const sendData = async (customData = null, cell = null, khu = null, additionalData = null, servers = null, serverIPs = null) => {
-
     try {
         // Nếu không có servers được truyền vào, sử dụng serverIPs từ tham số
         const effectiveServers = servers || (serverIPs
@@ -15,27 +14,12 @@ export const sendData = async (customData = null, cell = null, khu = null, addit
               }))
             : defaultServers); // Nếu không có serverIPs, dùng defaultServers
 
-        let data;
-
-        if (customData) {
-            data = customData;
-        } else if (cell !== null && khu !== null) {
-            data = {
-                modelProcessCode: "default",
-                fromSystem: `MS_${khu === 'khu4' ? 4 : 5}`,
-                orderId: cell.toString(),
-                taskOrderDetail: [
-                    {
-                        taskPath: `TASK_${cell}`,
-                        shelfModel: additionalData || 'Không có dữ liệu bổ sung'
-                    }
-                ]
-            };
-        } else {
-            throw new Error("Vui lòng nhập customData hoặc ít nhất là cell và khu!");
+        if (!customData) {
+            throw new Error("Vui lòng truyền customData! Dữ liệu phải được build ở task.js");
         }
+        const data = customData;
 
-        console.log("🚀 Dữ liệu gửi đi:", data, cell, khu, effectiveServers);
+        console.log("🚀 Dữ liệu gửi đi:", data, effectiveServers);
 
         const promises = effectiveServers.map(async (server) => {
             const { serverIP, endpoint } = server;
@@ -65,7 +49,7 @@ export const sendData = async (customData = null, cell = null, khu = null, addit
 
         const failedRequests = results.filter(result => !result.success);
         if (failedRequests.length > 0) {
-            throw new Error(`Gửi thất bại đến một số server: ${failedRequests.map(r => `${r.serverIP}${r.endpoint}: ${r.error}`).join(', ')}`);
+            throw new Error(`Gửi thất bại đến server: ${failedRequests.map(r => `${r.serverIP}${r.endpoint}: ${r.error}`).join(', ')}`);
         }
 
         return results;

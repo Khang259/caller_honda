@@ -1,10 +1,9 @@
-﻿import app_config
-from fastapi import FastAPI, WebSocket, HTTPException
+﻿from fastapi import FastAPI, WebSocket, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging, time
-from app_config import settings
+from config import config
 from database.mongodb import MongoDBClient
 from database.redis import RedisClient
 from services.data_service import DataService
@@ -24,31 +23,7 @@ import sys
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Đọc config.json từ thư mục chứa main.exe
-def load_config():
-    if getattr(sys, 'frozen', False):
-        base_path = os.path.dirname(sys.executable)
-    else:
-        base_path = os.path.dirname(__file__)
-
-    config_path = os.path.join(base_path, "config.json")
-    try:
-        with open(config_path, "r") as f:
-            config = json.load(f)
-        logger.info(f"Loaded config from config.json: {config}")
-        return config
-    except Exception as e:
-        logger.error(f"Failed to load config.json: {e}")
-
-# Đọc cấu hình từ config.json
-config = load_config()
-
-# Ghi đè settings từ app_config
-settings.fastapi_host = config.get("fastapi_host", settings.fastapi_host)
-settings.fastapi_port = config.get("fastapi_port", settings.fastapi_port)
-settings.frontend_host = config.get("frontend_host", settings.frontend_host)
-settings.frontend_port = config.get("frontend_port", settings.frontend_port)
-settings.log_level = config.get("log_level", settings.log_level)
+# Config đã được load từ config.py
 
 # Server FastAPI chính (API, WebSocket, và giao diện tại /client-x)
 @asynccontextmanager
@@ -80,9 +55,6 @@ frontend_app.add_middleware(
     allow_headers=["*"],
 )
 
-print("Current working directory:", os.getcwd())
-print("Does 'dist' exist?", os.path.exists("dist"))
-print("Files in current directory:", os.listdir("."))
 if os.path.exists("dist"):
     print("Files in dist:", os.listdir("dist"))
 else:
@@ -91,15 +63,13 @@ else:
 # frontend_app.mount("/", StaticFiles(directory=".", html=True), name="static")
 
 # Khởi tạo MongoDB và Redis
-mongo_client = MongoDBClient(settings.mongodb_url, settings.database_name)
-redis_client = RedisClient(settings.redis_url)
+mongo_client = MongoDBClient(config.mongodb_url, config.database_name)
+redis_client = RedisClient(config.redis_url)
 counter_service = CounterService(mongo_client)
 data_service = DataService(mongo_client, redis_client)
 websocket_manager = WebSocketManager()
 scheduler = SchedulerService(data_service, websocket_manager, mongo_client)
 
-# Mount giao diện tại /client-x
-# app.mount("/client-x", StaticFiles(directory=settings.static_dir, html=True), name="client-x")
 
 # API và WebSocket endpoints
 @app.websocket("/ws")
@@ -217,31 +187,65 @@ async def submit_task(data: TaskData):
             "message": f"Lỗi server: {str(e)}"
         }
 
-# Endpoint để frontend lấy config
+# Endpoint để frontend lấy config từ MongoDB
 @app.get("/config")
 async def get_config():
-    return {
-        "fastapi_host": config["fastapi_host"],
-        "fastapi_port": config["fastapi_port"]
-    }
+    try:
+        config_data = data_service.get_config()
+        return {"status": "success", "data": config_data}
+    except Exception as e:
+        logger.error(f"Error getting config: {e}")
+        return {"status": "error", "message": str(e)}
+
+# Endpoint để frontend lưu config vào MongoDB
+@app.post("/config")
+async def save_config(config_data: dict):
+    try:
+        result = data_service.save_config(config_data)
+        return {"status": "success", "data": result, "message": "Cấu hình đã được lưu thành công"}
+    except Exception as e:
+        logger.error(f"Error saving config: {e}")
+        return {"status": "error", "message": str(e)}
+
+# API endpoint để update dữ liệu cell
+@app.put("/update-cell/{khu}")
+async def update_cell_data(khu: str, cell_data: dict):
+    """Update dữ liệu cell trong MongoDB"""
+    try:
+        result = data_service.update_cell_data(khu, cell_data)
+        return {"status": "success", "data": result, "message": "Dữ liệu đã được cập nhật thành công"}
+    except Exception as e:
+        logger.error(f"Error updating cell data: {e}")
+        return {"status": "error", "message": str(e)}
+
+# API endpoint để delete dữ liệu cell
+@app.delete("/delete-cell/{khu}")
+async def delete_cell_data(khu: str, cell_id: str):
+    """Delete dữ liệu cell trong MongoDB"""
+    try:
+        result = data_service.delete_cell_data(khu, cell_id)
+        return {"status": "success", "data": result, "message": "Dữ liệu đã được xóa thành công"}
+    except Exception as e:
+        logger.error(f"Error deleting cell data: {e}")
+        return {"status": "error", "message": str(e)}
 
 # Hàm chạy server
 async def run_servers():
     # Server FastAPI (API, WebSocket, và giao diện tại /client-x)
     fastapi_config = Config(
         app=app,
-        host=settings.fastapi_host,
-        port=settings.fastapi_port,
-        log_level=settings.log_level.lower()
+        host=config.fastapi_host,
+        port=config.fastapi_port,
+        log_level=config.log_level.lower()
     )
     fastapi_server = Server(fastapi_config)
 
     # Server frontend (giao diện tại /)
     frontend_config = Config(
         app=frontend_app,
-        host=settings.frontend_host,
-        port=settings.frontend_port,
-        log_level=settings.log_level.lower()
+        host=config.frontend_host,
+        port=config.frontend_port,
+        log_level=config.log_level.lower()
     )
     frontend_server = Server(frontend_config)
 

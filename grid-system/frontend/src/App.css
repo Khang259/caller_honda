@@ -147,3 +147,33 @@ h5, h6 {
         flex: 0 0 50%;
     }
 }
+
+/* Context Menu Styles */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.dropdown-item {
+    padding: 8px 12px;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    transition: background-color 0.2s;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+.dropdown-item.text-danger:hover {
+    background-color: #f8d7da;
+}
+
+/* Prevent text selection on context menu */
+.grid-cell {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}

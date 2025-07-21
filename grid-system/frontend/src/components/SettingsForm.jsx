@@ -79,7 +79,7 @@ const SettingsForm = () => {
                 <Form.Control
                   type="number"
                   min="1"
-                  max={SupplyAndDemandConfig.rows * SupplyAndDemandConfig.columns}
+                  max="100"
                   value={SupplyAndDemandConfig.cells}
                   onChange={(e) => handleConfigChange('SupplyAndDemand', 'cells', e.target.value)}
                   className="form-control-lg"
@@ -116,7 +116,7 @@ const SettingsForm = () => {
                 <Form.Control
                   type="number"
                   min="1"
-                  max={SupplyConfig.rows * SupplyConfig.columns}
+                  max="100"
                   value={SupplyConfig.cells}
                   onChange={(e) => handleConfigChange('Supply', 'cells', e.target.value)}
                   className="form-control-lg"
@@ -153,7 +153,7 @@ const SettingsForm = () => {
                 <Form.Control
                   type="number"
                   min="1"
-                  max={DemandConfig.rows * DemandConfig.columns}
+                  max="100"
                   value={DemandConfig.cells}
                   onChange={(e) => handleConfigChange('Demand', 'cells', e.target.value)}
                   className="form-control-lg"
