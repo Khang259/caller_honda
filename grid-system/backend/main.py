@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI, WebSocket, HTTPException
+﻿from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -35,25 +35,37 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
     logger.info("🛑 Server FastAPI đang tắt...")
 
-app = FastAPI(lifespan=lifespan)
 
+app = FastAPI(lifespan=lifespan, debug=True)
+
+
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",  # Worker frontend dev
+        "http://localhost:3001",  # Worker frontend prod
+        "http://localhost:3000",  # Admin frontend
+        "http://localhost:8001",  # Admin backend
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8001",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Server tĩnh để phục vụ giao diện React tại frontend_app
-frontend_app = FastAPI()
-frontend_app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# # Server tĩnh để phục vụ giao diện React tại frontend_app
+# frontend_app = FastAPI()
+# frontend_app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 if os.path.exists("dist"):
     print("Files in dist:", os.listdir("dist"))
