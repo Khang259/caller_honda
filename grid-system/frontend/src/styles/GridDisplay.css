@@ -16,7 +16,7 @@
     --bs-gutter-x: 0.5rem; /* Giảm khoảng cách giữa các cột từ 1.5rem (default) xuống 0.5rem */
   }
   
-  /* Responsive cho màn hình 800x480px và nhỏ hơn */
+
   @media (max-width: 800px) {
     .grid-cell {
       height: 60px; /* Chiều cao ô nhỏ hơn */
@@ -47,17 +47,24 @@
       font-size: 0.75rem;
     }
     .row {
-      --bs-gutter-x: 0.2rem; /* Giảm khoảng cách cột tối đa */
+      --bs-gutter-x: 0.3rem; /* Giảm khoảng cách cột tối đa */
     }
-    .col-3,
-    .col-sm-4,
-    .col-md-3,
-    .col-lg-2,
-    .col-xl-2 {
+    .col-3 {
       padding-right: 1px;
       padding-left: 1px;
-      flex: 0 0 33.33%; /* 3 ô mỗi hàng */
-      max-width: 33.33%;
+      flex: 0 0 25%; /* 4 ô mỗi hàng */
+      max-width: 25%;
+    }
+
+    .container, .container-fluid, .container-lg, .container-md, .container-sm, .container-xl, .container-xxl {
+        --bs-gutter-x: 0 !important; /* Ghi đè --bs-gutter-x thành 0 */
+    }
+
+    .card-body {
+        padding: 0 ; 
+    }
+    .grid-cell {
+      font-size: 1.2rem;
     }
   }
   
