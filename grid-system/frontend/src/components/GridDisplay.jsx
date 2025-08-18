@@ -12,6 +12,7 @@ import { sendData } from '../services/api';
 import { formatCellLabel } from '../utils/format';
 import { fetchConfig } from '../services/config';
 import ContextMenu from './ContextMenu';
+import '../styles/GridDisplay.css';
 
 const GridDisplay = ({ gridData }) => {
   const { currentUser, isAdmin } = useAuth();
@@ -291,7 +292,7 @@ const GridDisplay = ({ gridData }) => {
   };
 
   const renderGrid = () => {
-    if (loading) return <div className="text-center">Đang tải dữ liệu từ MongoDB...</div>;
+    if (loading) return <div className="text-center">Đang tải dữ liệu ...</div>;
     if (error) return <div className="text-danger text-center">Lỗi: {error}</div>;
     if (!taskData || taskData.length === 0) {
       return (
@@ -332,7 +333,7 @@ const GridDisplay = ({ gridData }) => {
       let isDisabled = disabledCells[currentKhu]?.includes(i) || false;
 
       cells.push(
-        <div className="col-6 col-sm-4 col-md-3 col-lg-2 col-xl-2" key={i}>
+        <div className="col-3 col-sm-4 col-md-3 col-lg-2 col-xl-2" key={i}>
           <div
             id={`cell-${i}`}
             className={`text-white grid-cell ${isDisabled ? 'disabled' : ''}`}
@@ -341,13 +342,13 @@ const GridDisplay = ({ gridData }) => {
             style={{
               backgroundColor: cellState.startsWith('bg-') ? undefined : cellState,
               height: '80px',
-              margin: '5px',
+              margin: '10px',
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
               borderRadius: '8px',
               fontWeight: 'bold',
-              fontSize: '16px',
+              fontSize: '1 rem',
               cursor: isDisabled ? 'not-allowed' : 'pointer',
               opacity: isDisabled ? 0.5 : 1,
               ...(cellState.startsWith('bg-') && { className: `${cellState} text-white grid-cell ${isDisabled ? 'disabled' : ''}` })

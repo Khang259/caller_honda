@@ -1,0 +1,68 @@
+/* Mặc định cho grid-cell */
+.grid-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    height: 80px; /* Mặc định cho màn hình lớn */
+    margin: 5px; /* Giảm margin từ 10px xuống 5px */
+  }
+  
+  /* Giảm padding của cột Bootstrap */
+  .row {
+    --bs-gutter-x: 0.5rem; /* Giảm khoảng cách giữa các cột từ 1.5rem (default) xuống 0.5rem */
+  }
+  
+  /* Responsive cho màn hình 800x480px và nhỏ hơn */
+  @media (max-width: 800px) {
+    .grid-cell {
+      height: 60px; /* Chiều cao ô nhỏ hơn */
+      margin: 3px; /* Giảm margin xuống 3px */
+      font-size: 0.85rem;
+      border-radius: 6px;
+    }
+    .row {
+      --bs-gutter-x: 0.3rem; /* Giảm thêm khoảng cách cột */
+    }
+    .col-3,
+    .col-sm-4,
+    .col-md-3,
+    .col-lg-2,
+    .col-xl-2 {
+      padding-right: 2px; /* Giảm padding cột */
+      padding-left: 2px;
+      flex: 0 0 25%; /* 4 ô mỗi hàng */
+      max-width: 25%;
+    }
+  }
+  
+  /* Responsive cho màn hình rất nhỏ (dưới 480px, nếu cần) */
+  @media (max-width: 480px) {
+    .grid-cell {
+      height: 50px;
+      margin: 2px; /* Giảm margin xuống 2px */
+      font-size: 0.75rem;
+    }
+    .row {
+      --bs-gutter-x: 0.2rem; /* Giảm khoảng cách cột tối đa */
+    }
+    .col-3,
+    .col-sm-4,
+    .col-md-3,
+    .col-lg-2,
+    .col-xl-2 {
+      padding-right: 1px;
+      padding-left: 1px;
+      flex: 0 0 33.33%; /* 3 ô mỗi hàng */
+      max-width: 33.33%;
+    }
+  }
+  
+  /* Đảm bảo ô bị vô hiệu hóa vẫn rõ ràng */
+  .grid-cell.disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }

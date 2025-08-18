@@ -5,3 +5,4 @@ redis
 pydantic
 pydantic-settings>=2.0.0
 apscheduler
+pytz

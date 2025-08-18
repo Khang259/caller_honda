@@ -34,9 +34,9 @@ class AppConfig:
     
     # Server
     fastapi_host: str = None  # Sẽ được set trong __post_init__
-    fastapi_port: int = 8000   # Port FastAPI mặc định
+    fastapi_port: int = 1836   # Port FastAPI mặc định
     frontend_host: str = None  # Sẽ được set trong __post_init__
-    frontend_port: int = 5173  # Port Vite mặc định
+    frontend_port: int = 1837  # Port Vite mặc định
     
     # Logging
     log_level: str = "INFO"
