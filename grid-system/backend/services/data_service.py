@@ -4,7 +4,6 @@ Loại bỏ Redis cache để đơn giản hóa
 """
 
 from database.mongodb import MongoDBClient
-from database.redis import RedisClient
 from typing import List, Dict, Any, Optional
 import logging
 from datetime import datetime, timedelta
@@ -13,9 +12,8 @@ from config import config
 logger = logging.getLogger(__name__)
 
 class DataService:
-    def __init__(self, mongo_client: MongoDBClient, redis_client: RedisClient = None):
+    def __init__(self, mongo_client: MongoDBClient):
         self.mongo = mongo_client
-        self.redis = redis_client  # Giữ lại để backward compatibility
         self.collections = {
             "supplyanddemand": "task_path_supply_demand",
             "supply": "task_path_supply", 
@@ -34,55 +32,46 @@ class DataService:
             return data_dict
         return data
 
-    async def get_stats(self, date: Optional[str] = None, days: Optional[int] = None) -> Dict[str, Any]:
-        """Get statistics directly from MongoDB"""
-        try:
-            # Get daily stats
-            daily_stats = self.get_request_count(date, days)
+    # async def get_stats(self, date: Optional[str] = None, days: Optional[int] = None) -> Dict[str, Any]:
+    #     """Get statistics directly from MongoDB"""
+    #     try:
+    #         # Get daily stats
+    #         daily_stats = self.get_request_count(date, days)
             
-            # Get weekly stats
-            weekly_stats = self.get_request_count(days=7)
+    #         # Get weekly stats
+    #         weekly_stats = self.get_request_count(days=7)
             
-            # Get monthly stats  
-            monthly_stats = self.get_request_count(days=30)
+    #         # Get monthly stats  
+    #         monthly_stats = self.get_request_count(days=30)
             
-            # Get status counts
-            status_counts = self.get_status_counts()
+    #         # Get status counts
+    #         status_counts = self.get_status_counts()
             
-            return {
-                "totalOrders": daily_stats["totalOrders"],
-                "weeklyTotal": weekly_stats["totalOrders"],
-                "monthlyTotal": monthly_stats["totalOrders"],
-                "statusCounts": status_counts
-            }
-        except Exception as e:
-            logger.error(f"Error getting stats: {e}")
-            return {
-                "totalOrders": 0,
-                "weeklyTotal": 0,
-                "monthlyTotal": 0,
-                "statusCounts": {"SupplyAndDemand": 0, "Supply": 0, "Demand": 0}
-            }
+    #         return {
+    #             "totalOrders": daily_stats["totalOrders"],
+    #             "weeklyTotal": weekly_stats["totalOrders"],
+    #             "monthlyTotal": monthly_stats["totalOrders"],
+    #             "statusCounts": status_counts
+    #         }
+        # except Exception as e:
+        #     logger.error(f"Error getting stats: {e}")
+        #     return {
+        #         "totalOrders": 0,
+        #         "weeklyTotal": 0,
+        #         "monthlyTotal": 0,
+        #         "statusCounts": {"SupplyAndDemand": 0, "Supply": 0, "Demand": 0}
+        #     }
 
     async def send_periodic_stats(self):
         """Send periodic stats (kept for compatibility)"""
         stats = await self.get_stats()
         return stats
 
-    # Loại bỏ load_to_redis() vì không cần thiết nữa
-    async def load_to_redis(self):
-        """Deprecated: No longer needed when reading directly from MongoDB"""
-        logger.info("Redis loading deprecated - reading directly from MongoDB")
-        pass
-
     def get_task_data(self, khu: str) -> List[Dict[str, Any]]:
         """Get task data directly from MongoDB collections"""
         khu_lower = khu.lower()
         collection = self.collections.get(khu_lower)
-        
-        # Debug logging
-        logger.info(f"🔍 Debug: khu='{khu}' -> khu_lower='{khu_lower}'")
-        logger.info(f"🔍 Debug: collections mapping = {self.collections}")
+
         logger.info(f"🔍 Debug: looking for key '{khu_lower}' in {list(self.collections.keys())}")
         logger.info(f"🔍 Debug: Collection found = {collection}")
         
@@ -189,44 +178,6 @@ class DataService:
             "records": len(history),
             "message": "Dữ liệu đã được lưu thành công vào MongoDB"
         }
-
-    def reset_requests(self):
-        """Reset daily requests"""
-        now = datetime.utcnow() + timedelta(hours=config.timezone_offset)
-        reset_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        reset_date_utc = reset_date - timedelta(hours=config.timezone_offset)
-        query = {"timestamp": {"$lt": reset_date_utc.timestamp()}}
-        try:
-            deleted_count = self.mongo.delete_by_query("server_to_client_requests", query)
-            logger.info(f"Daily reset: Deleted {deleted_count} requests before {reset_date_utc}")
-            return deleted_count
-        except Exception as e:
-            logger.error(f"Error in daily reset: {e}")
-            raise
-
-    def reset_weekly_requests(self):
-        """Reset weekly requests"""
-        cutoff_date = datetime.utcnow() - timedelta(days=7)
-        query = {"timestamp": {"$lt": cutoff_date.timestamp()}}
-        try:
-            deleted_count = self.mongo.delete_by_query("server_to_client_requests", query)
-            logger.info(f"Weekly reset: Deleted {deleted_count} requests older than 7 days")
-            return deleted_count
-        except Exception as e:
-            logger.error(f"Error in weekly reset: {e}")
-            raise
-
-    def reset_monthly_requests(self):
-        """Reset monthly requests"""
-        cutoff_date = datetime.utcnow() - timedelta(days=30)
-        query = {"timestamp": {"$lt": cutoff_date.timestamp()}}
-        try:
-            deleted_count = self.mongo.delete_by_query("server_to_client_requests", query)
-            logger.info(f"Monthly reset: Deleted {deleted_count} requests older than 30 days")
-            return deleted_count
-        except Exception as e:
-            logger.error(f"Error in monthly reset: {e}")
-            raise
 
     def get_request_count(self, date: Optional[str] = None, days: Optional[int] = None) -> Dict[str, Any]:
         """Get request count directly from MongoDB"""
@@ -477,4 +428,215 @@ class DataService:
     def get_alarm_message(self) -> Dict[str, Any]:
         """Get alarm message (placeholder)"""
         return {"status": "success", "message": "No alarms"}
+
+    def get_task_path_options(self, khu: str) -> Dict[str, Any]:
+        """Get task path options for specific khu from correct collection"""
+        try:
+            # Đảm bảo khu là string và clean
+            khu_str = str(khu).strip() if khu else ""
+            logger.info(f"🔍 Debug - Original khu: {khu}, type: {type(khu)}")
+            logger.info(f"🔍 Debug - Cleaned khu: {khu_str}, type: {type(khu_str)}")
+            
+            # Map khu to correct collection name
+            collection_mapping = {
+                "SupplyAndDemand": "task_path_supply_demand",
+                "Supply": "task_path_supply",
+                "Demand": "task_path_demand"
+            }
+            
+            collection_name = collection_mapping.get(khu_str)
+            if not collection_name:
+                logger.error(f"Không hỗ trợ khu: {khu_str}")
+                return self._get_default_options(khu_str)
+            
+            logger.info(f"🔍 Using collection: {collection_name}")
+            
+            # Get options from MongoDB
+            collection = self.mongo.get_collection(collection_name)
+            
+            # Tìm document theo khu - sửa query để tránh lỗi tuple
+            query = {"khu": khu_str}
+            
+            logger.info(f"🔍 Search query: {query}")
+            
+            # Thử tìm document
+            try:
+                sample_doc = collection.find_one(query)
+                logger.info(f"🔍 MongoDB query result: {sample_doc}")
+            except Exception as mongo_error:
+                logger.error(f"❌ MongoDB query error: {mongo_error}")
+                # Fallback: tìm tất cả documents và filter
+                all_docs = list(collection.find({}))
+                logger.info(f"🔍 Found {len(all_docs)} total documents")
+                
+                # Filter theo khu
+                sample_doc = None
+                for doc in all_docs:
+                    if doc.get("khu") == khu_str:
+                        sample_doc = doc
+                        break
+                
+                logger.info(f"🔍 Filtered document: {sample_doc}")
+            
+            if not sample_doc:
+                logger.warning(f"Không tìm thấy options cho khu: {khu_str} trong collection {collection_name}")
+                return self._get_default_options(khu_str)
+            
+            # Extract options từ document
+            options = self._extract_options_from_document(sample_doc, khu_str)
+            logger.info(f"✅ Successfully extracted options for khu {khu_str}")
+            return options
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting task path options for {khu}: {e}")
+            logger.error(f"❌ Error type: {type(e)}")
+            logger.error(f"❌ Error details: {str(e)}")
+            # Return default options on error
+            return self._get_default_options(str(khu) if khu else "SupplyAndDemand")
+
+    def _get_default_options(self, khu: str) -> Dict[str, Any]:
+        """Get default options structure for khu"""
+        try:
+            # Đảm bảo khu là string
+            khu_str = str(khu).strip() if khu else "SupplyAndDemand"
+            logger.info(f"🔍 Getting default options for khu: {khu_str}")
+            
+            default_options = {
+                "SupplyAndDemand": {
+                    "steps": {
+                        "step1": {
+                            "label": "Bước 1 - Model Process",
+                            "options": ["10000186", "10000187", "10000188", "10000189", "10000190"]
+                        },
+                        "step2": {
+                            "label": "Bước 2 - From System",
+                            "options": ["10001151", "10001152", "10001153", "10001154", "10001155"]
+                        },
+                        "step3": {
+                            "label": "Bước 3 - Task Order",
+                            "options": ["10001150", "10001151", "10001152", "10001153", "10001154"]
+                        },
+                        "step4": {
+                            "label": "Bước 4 - Cell Selection",
+                            "options": ["10000196", "10000197", "10000198", "10000199", "10000200"]
+                        }
+                    }
+                },
+                "Supply": {
+                    "steps": {
+                        "step1": {
+                            "label": "Bước 1 - Supply Process",
+                            "options": ["20000186", "20000187", "20000188", "20000189", "20000190"]
+                        },
+                        "step2": {
+                            "label": "Bước 2 - Supply System",
+                            "options": ["20001151", "20001152", "20001153", "20001154", "20001155"]
+                        }
+                    }
+                },
+                "Demand": {
+                    "steps": {
+                        "step1": {
+                            "label": "Bước 1 - Demand Process",
+                            "options": ["30000186", "30000187", "30000188", "30000189", "30000190"]
+                        },
+                        "step2": {
+                            "label": "Bước 2 - Demand System",
+                            "options": ["30001151", "30001152", "30001153", "30001154", "30001155"]
+                        },
+                        "step3": {
+                            "label": "Bước 3 - Demand Order",
+                            "options": ["30001150", "30001151", "30001152", "30001153", "30001154"]
+                        }
+                    }
+                }
+            }
+            
+            result = default_options.get(khu_str, {})
+            logger.info(f"✅ Returning default options for khu {khu_str}: {len(result.get('steps', {}))} steps")
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ Error in _get_default_options: {e}")
+            return {}
+
+    def _extract_options_from_document(self, doc: Dict[str, Any], khu: str) -> Dict[str, Any]:
+        """Extract options from MongoDB document"""
+        try:
+            logger.info(f"🔍 Extracting from document: {doc}")
+            
+            # Kiểm tra cấu trúc document
+            if "steps" in doc and isinstance(doc["steps"], dict):
+                # Document có cấu trúc đúng
+                steps = doc["steps"]
+                logger.info(f"✅ Found steps: {list(steps.keys())}")
+                
+                # Validate và clean steps
+                cleaned_steps = {}
+                for step_key, step_data in steps.items():
+                    if isinstance(step_data, dict) and "label" in step_data and "options" in step_data:
+                        cleaned_steps[step_key] = {
+                            "label": str(step_data["label"]),
+                            "options": [str(opt) for opt in step_data["options"] if opt]
+                        }
+                        logger.info(f"✅ Cleaned {step_key}: {cleaned_steps[step_key]}")
+                    else:
+                        logger.warning(f"⚠️ Invalid step data for {step_key}: {step_data}")
+                
+                if cleaned_steps:
+                    return {"steps": cleaned_steps}
+                else:
+                    logger.warning("⚠️ No valid steps found, using default")
+                    return self._get_default_options(khu)
+            else:
+                logger.warning(f"⚠️ Document không có cấu trúc steps hợp lệ: {doc}")
+                return self._get_default_options(khu)
+                
+        except Exception as e:
+            logger.error(f"❌ Error extracting options from document: {e}")
+            return self._get_default_options(khu)
+
+    def search_task_path(self, search_criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Search for task path in database"""
+        try:
+            task_path = search_criteria.get("taskPath")
+            khu = search_criteria.get("khu")
+            
+            if not all([task_path, khu]):
+                raise ValueError("Missing required search criteria")
+            
+            logger.info(f" Searching for khu: {khu}, taskPath: {task_path}")
+            
+            # Sử dụng collection chính dựa trên khu (KHÔNG phải task_path_supply_name)
+            khu_mapping = {
+                "SupplyAndDemand": "task_path_supply_demand",
+                "Supply": "task_path_supply", 
+                "Demand": "task_path_demand"
+            }
+            
+            collection_name = khu_mapping.get(khu)
+            if not collection_name:
+                raise ValueError(f"Không hỗ trợ khu: {khu}")
+            
+            logger.info(f"🔍 Using collection: {collection_name}")
+            
+            collection = self.mongo.get_collection(collection_name)
+            
+            # Search for documents with matching task path
+            # Cấu trúc document: {"value": {"taskOrderDetail": [{"taskPath": "10000186,10001151,10001150,10000196"}]}}
+            query = {
+                "value.taskOrderDetail.0.taskPath": task_path
+            }
+            
+            logger.info(f"🔍 Search query: {query}")
+            
+            results = list(collection.find(query))
+            cleaned_results = self.convert_objectid_to_str(results)
+            
+            logger.info(f"✅ Search completed: {len(results)} results found")
+            return cleaned_results
+            
+        except Exception as e:
+            logger.error(f"❌ Error searching task path: {e}")
+            raise
 

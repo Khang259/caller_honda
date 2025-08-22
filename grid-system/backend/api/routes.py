@@ -192,3 +192,27 @@ async def save_config(config_data: dict):
     except Exception as e:
         logger.error(f"Error saving config: {e}")
         return create_error_response(str(e)) 
+
+@api_router.get("/grid/options/{khu}")
+async def get_task_path_options(khu: str):
+    """Get task path options for specific khu from MongoDB"""
+    try:
+        services = get_services()
+        options_data = services.data_service.get_task_path_options(khu)
+        logger.info(f"✅ Fetched task path options for khu: {khu}")
+        return create_success_response(data=options_data)
+    except Exception as e:
+        logger.error(f"❌ Error getting task path options for {khu}: {e}")
+        return create_error_response(str(e))
+
+@api_router.get("/grid/search")
+async def search_task_path(search_criteria: dict):
+    """Search for task path in database"""
+    try:
+        services = get_services()
+        result = services.data_service.search_task_path(search_criteria)
+        logger.info(f"✅ Search completed for criteria: {search_criteria}")
+        return create_success_response(data=result)
+    except Exception as e:
+        logger.error(f"❌ Error searching task path: {e}")
+        return create_error_response(str(e)) 
