@@ -39,3 +39,45 @@ export const AdminRoute = ({ children }) => {
 
     return children;
 };
+
+export const UserAE3Route = ({ children }) => {
+    const auth = useAuth();
+
+    if (!auth) {
+        console.error("useAuth() returned undefined");
+        return <Navigate to="/login" />;
+    }
+
+    const { currentUser, isUserAE3 } = auth;
+
+    if (!currentUser) {
+        return <Navigate to="/login" />;
+    }
+
+    if (!isUserAE3()) {
+        return <Navigate to="/" />;
+    }
+
+    return children;
+};
+
+export const UserAE4Route = ({ children }) => {
+    const auth = useAuth();
+
+    if (!auth) {
+        console.error("useAuth() returned undefined");
+        return <Navigate to="/login" />;
+    }
+
+    const { currentUser, isUserAE4 } = auth;
+
+    if (!currentUser) {
+        return <Navigate to="/login" />;
+    }
+
+    if (!isUserAE4()) {
+        return <Navigate to="/" />;
+    }
+
+    return children;
+};

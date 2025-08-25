@@ -10,11 +10,11 @@ import { fetchConfig } from '../services/config';
 
 // Constants
 const KHU_CONFIG = {
-  SupplyAndDemand: {
-    label: 'CẤP&TRẢ HÀNG',
-    collection: 'task_path_supply', // Sửa collection name
-    maxElements: 4
-  },
+  // SupplyAndDemand: {
+  //   label: 'CẤP&TRẢ HÀNG',
+  //   collection: 'task_path_supply', // Sửa collection name
+  //   maxElements: 4
+  // },
   Supply: {
     label: 'CẤP HÀNG',
     collection: 'task_path_supply', // Sửa collection name
@@ -200,10 +200,6 @@ const MobileGridDisplay = () => {
           }
         ]
       };
-
-      console.log('🚀 Gửi request đến /ics/taskOrder/addTask với payload:', payload);
-      console.log('🎯 Khu được chọn:', selectedKhu);
-      console.log('🎯 Model Process Code:', modelProcessCode);
 
       // Gọi API /ics/taskOrder/addTask với server IP thứ hai
       const apiUrl = `http://${effectiveServerIPICS}/ics/taskOrder/addTask`;
