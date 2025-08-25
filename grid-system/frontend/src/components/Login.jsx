@@ -58,9 +58,12 @@ const Login = () => {
                     </Card.Body>
                 </Card>
                 <div className="text-center mt-3">
-                    <p className="text-muted">Tài khoản demo:</p>
-                    <p className="text-muted">Admin: admin / admin123</p>
-                    <p className="text-muted">User: user / user123</p>
+                    {/* <p className="text-muted">Tài khoản demo:</p>
+                    <p className="text-muted">Admin: admin / admin123</p> */}
+                    {/* <p className="text-muted">User AE: user_AE / userae</p>
+                    <p className="text-muted">User DCC: user_DCC / userdcc</p> */}
+                    {/* <p className="text-muted">User AE3: user_ae3 / userae3</p>
+                    <p className="text-muted">User AE4: user_ae4 / userae4</p> */}
                 </div>
             </div>
         </Container>

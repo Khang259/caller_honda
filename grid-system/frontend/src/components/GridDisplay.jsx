@@ -174,8 +174,13 @@ const GridDisplay = ({ gridData }) => {
     if (isSending) return;
     setIsSending(true);
 
+    console.log('🏭 Khu vực hiện tại:', currentKhu);
+    console.log('🌐 Danh sách Server IPs:', serverIPs);
+    console.log('📊 Dữ liệu taskData:', taskData);
+
     try {
       const selectedData = taskData.find(item => item.cell === `cell-${selectedCell}`);
+      
       if (!selectedData) {
         // Kiểm tra xem có dữ liệu nào trong taskData không
         if (taskData.length === 0) {
@@ -184,6 +189,14 @@ const GridDisplay = ({ gridData }) => {
           throw new Error(`Không tìm thấy dữ liệu cho ô ${selectedCell} trong MongoDB. Có thể ô này chưa được cập nhật.`);
         }
       }
+
+      // Kiểm tra xem có đủ server IPs không
+      if (!serverIPs || serverIPs.length < 2) {
+        throw new Error('Cần ít nhất 2 địa chỉ IP server để thực hiện gửi tín hiệu!');
+      }
+      console.log('   - serverIPs:', serverIPs);
+      console.log('   - selectedData:', selectedData);
+      console.log('   - currentKhu:', currentKhu);
 
       const result = await sendTaskSignal(
         serverIPs,
@@ -197,8 +210,11 @@ const GridDisplay = ({ gridData }) => {
         khuColors,
         handleClose
       );
+      
+      console.log('📤 Kết quả từ sendTaskSignal:', result);
       setSendResult(result);
     } catch (error) {
+      console.error('❌ Lỗi trong handleSendSignal:', error);
       setSendResult({ success: false, message: `Lỗi: ${error.message}` });
       setCellStates(prev => ({ ...prev, [selectedCell]: 'bg-danger' }));
       setTimeout(() => handleClose(), 2000);
@@ -341,16 +357,16 @@ const GridDisplay = ({ gridData }) => {
             onContextMenu={(e) => !isDisabled && handleCellRightClick(e, i)}
             style={{
               backgroundColor: cellState.startsWith('bg-') ? undefined : cellState,
-              height: '80px',
-              margin: '10px',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              borderRadius: '8px',
-              fontWeight: 'bold',
-              fontSize: '1 rem',
-              cursor: isDisabled ? 'not-allowed' : 'pointer',
-              opacity: isDisabled ? 0.5 : 1,
+              // height: '80px',
+              // margin: '5px',
+              // display: 'flex',
+              // justifyContent: 'center',
+              // alignItems: 'center',
+              // borderRadius: '8px',
+              // fontWeight: 'bold',
+              // fontSize: '0.5 rem',
+              // cursor: isDisabled ? 'not-allowed' : 'pointer',
+              // opacity: isDisabled ? 0.5 : 1,
               ...(cellState.startsWith('bg-') && { className: `${cellState} text-white grid-cell ${isDisabled ? 'disabled' : ''}` })
             }}
           >

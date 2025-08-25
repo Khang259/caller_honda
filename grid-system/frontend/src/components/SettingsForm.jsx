@@ -40,14 +40,30 @@ const SettingsForm = () => {
             <Form.Group className="mb-4">
               <Form.Control
                 type="text"
-                placeholder="Nhập địa chỉ server (vd: 127.0.0.1:8000, 192.168.1.116:8000)"
+                placeholder="Nhập địa chỉ server (vd: 127.0.0.1:8000, 127.0.0.1:7000)"
                 value={inputServerIP}
                 onChange={(e) => setInputServerIP(e.target.value)}
                 className="form-control-lg"
               />
               <Form.Text className="text-muted">
-                Nhập nhiều địa chỉ server, cách nhau bởi dấu phẩy (VD: 127.0.0.1:8000, 192.168.1.116:8000)
+                <strong>Yêu cầu:</strong> Nhập ít nhất 2 địa chỉ server, cách nhau bởi dấu phẩy<br/>
+                <strong>Ví dụ:</strong> 127.0.0.1:8000, 127.0.0.1:7000<br/>
+                <strong>Lưu ý:</strong> Server đầu tiên sẽ xử lý /submit-data, Server thứ hai sẽ xử lý /ics/taskOrder/addTask
               </Form.Text>
+              {serverIPs && serverIPs.length > 0 && (
+                <div className="mt-2">
+                  <small className="text-info">
+                    <i className="bi bi-info-circle me-1"></i>
+                    <strong>Server hiện tại:</strong> {serverIPs.join(', ')}
+                    {serverIPs.length < 2 && (
+                      <span className="text-warning ms-2">
+                        <i className="bi bi-exclamation-triangle me-1"></i>
+                        Cần ít nhất 2 server để sử dụng đầy đủ tính năng
+                      </span>
+                    )}
+                  </small>
+                </div>
+              )}
             </Form.Group>
 
             <div className="settings-title">Cấu hình khu vực Cấp&Trả hàng</div>

@@ -6,9 +6,14 @@
     border-radius: 8px;
     font-weight: bold;
     cursor: pointer;
-    transition: all 0.3s ease;
-    height: 80px; /* Mặc định cho màn hình lớn */
-    margin: 5px; /* Giảm margin từ 10px xuống 5px */
+    height: 80px;
+    margin: 5px !important;
+    font-size: 2rem;
+    opacity: 1 ;
+    text-align: center;       /* để text xuống dòng đẹp */
+    white-space: normal;      /* cho phép xuống dòng */
+    word-break: break-word;   /* bẻ từ nếu quá dài */
+    overflow-wrap: anywhere;  /* với chuỗi không có khoảng trắng */
   }
   
   /* Giảm padding của cột Bootstrap */
@@ -21,7 +26,7 @@
     .grid-cell {
       height: 60px; /* Chiều cao ô nhỏ hơn */
       margin: 3px; /* Giảm margin xuống 3px */
-      font-size: 0.85rem;
+      font-size: 1.2rem;
       border-radius: 6px;
     }
     .row {
@@ -44,7 +49,7 @@
     .grid-cell {
       height: 50px;
       margin: 2px; /* Giảm margin xuống 2px */
-      font-size: 0.75rem;
+      font-size: 0.5rem;
     }
     .row {
       --bs-gutter-x: 0.3rem; /* Giảm khoảng cách cột tối đa */

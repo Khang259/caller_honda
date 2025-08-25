@@ -26,7 +26,10 @@ export const AuthProvider = ({ children }) => {
     // Danh sách người dùng mẫu
     const users = [
         { username: 'admin', password: 'admin123', role: 'admin' },
-        { username: 'user', password: 'user123', role: 'user' }
+        { username: 'user_AE', password: 'userae', role: 'user' },
+        { username: 'user_DCC', password: 'userdcc', role: 'user' },
+        { username: 'user_ae3', password: 'userae3', role: 'user_ae3' },
+        { username: 'user_ae4', password: 'userae4', role: 'user_ae4' }
     ];
 
     // Đăng nhập
@@ -52,11 +55,21 @@ export const AuthProvider = ({ children }) => {
         return currentUser && currentUser.role === 'admin';
     };
 
+    const isUserAE3 = () => {
+        return currentUser && currentUser.role === 'user_ae3';
+    };
+
+    const isUserAE4 = () => {
+        return currentUser && currentUser.role === 'user_ae4';
+    };
+
     const value = {
         currentUser,
         login,
         logout,
         isAdmin,
+        isUserAE3,
+        isUserAE4,
         loading
     };
 
