@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI, WebSocket, HTTPException
+﻿from fastapi import FastAPI, WebSocket, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -87,20 +87,22 @@ async def websocket_endpoint(websocket: WebSocket):
 
 # ===== TASK ENDPOINTS (từ routes.py) =====
 @app.get("/tasks/{khu}")
-async def get_task_data(khu: str):
+async def get_task_data(khu: str, username: Optional[str] = Query(None)):
     """Get task data for specific area from MongoDB collections"""
     try:
-        data = data_service.get_task_data(khu)
-        logger.info(f"✅ Fetched {len(data)} records from MongoDB for khu: {khu}")
+        logger.info(f"[HTTP] /tasks/{khu} | username={username}")
+        data = data_service.get_task_data(khu, username)
+        logger.info(f"✅ Fetched {len(data)} records from MongoDB for khu: {khu}, username: {username}")
         return {"status": "success", "data": data}
     except Exception as e:
         logger.error(f"❌ Error getting task data for {khu}: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.get("/get-task-data/{khu}")
-async def get_task_data_legacy(khu: str):
+async def get_task_data_legacy(khu: str, username: Optional[str] = Query(None)):
     """Legacy endpoint for backward compatibility"""
-    return await get_task_data(khu)
+    logger.info(f"[HTTP] /get-task-data/{khu} | username={username}")
+    return await get_task_data(khu, username)
 
 @app.get("/tasks/history")
 async def get_grid_history():
@@ -244,14 +246,15 @@ async def save_config(config_data: dict):
 
 # ===== GRID ENDPOINTS (từ routes.py) - QUAN TRỌNG! =====
 @app.get("/api/grid/options/{khu}")
-async def get_task_path_options(khu: str):
+async def get_task_path_options(khu: str, username: Optional[str] = Query(None)):
     """Get task path options for specific khu from MongoDB"""
     try:
-        options_data = data_service.get_task_path_options(khu)
-        logger.info(f"✅ Fetched task path options for khu: {khu}")
+        logger.info(f"[HTTP] /api/grid/options/{khu} | username={username}")
+        options_data = data_service.get_task_path_options(khu, username)
+        logger.info(f"✅ Fetched task path options for khu: {khu}, username: {username}")
         return {"status": "success", "data": options_data}
     except Exception as e:
-        logger.error(f"❌ Error getting task path options for {khu}: {e}")
+        logger.error(f"❌ Error getting task path options for {khu}, username: {username}: {e}")
         return {"status": "error", "message": str(e)}
 
 # Sửa endpoint search

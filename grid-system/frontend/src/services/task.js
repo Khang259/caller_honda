@@ -1,4 +1,3 @@
-// src/services/task.js
 import { sendData, defaultServers } from './api';
 import { format } from 'date-fns';
 import { formatCellLabel } from '../utils/format';
@@ -14,19 +13,19 @@ export const sendTaskSignal = async (
   handleClose,
   khuColors
 ) => {
-  const jsonData = taskData.value;
-  console.log('jsonData:', jsonData);
+  const jsonData = taskData;
+  console.log('🔍 Debug - sendTaskSignal - jsonData:', JSON.stringify(jsonData));
 
   // Lấy orderCount
   const response = await fetch(`http://${serverIPs[0]}/getOrderCount`);
-  console.log('Response received from getOrderCount:', response);
+  console.log('🔍 Debug - sendTaskSignal - Response từ getOrderCount:', response);
 
   if (!response.ok) {
     throw new Error(`Không thể lấy orderCount từ server: HTTP ${response.status}`);
   }
 
   const json = await response.json();
-  console.log('JSON từ getOrderCount:', json);
+  console.log('🔍 Debug - sendTaskSignal - JSON từ getOrderCount:', JSON.stringify(json));
 
   if (json.status === 'error') {
     throw new Error(`Lỗi từ server: ${json.message}`);
@@ -38,6 +37,7 @@ export const sendTaskSignal = async (
   }
 
   const newOrderId = `Superlification_${orderCount}`;
+  console.log('🔍 Debug - sendTaskSignal - newOrderId:', newOrderId);
 
   const reorderedData = {
     modelProcessCode: jsonData.modelProcessCode || 'None',
@@ -45,12 +45,13 @@ export const sendTaskSignal = async (
     orderId: newOrderId,
     taskOrderDetail: jsonData.taskOrderDetail || [{ taskPath: '' }],
   };
+  console.log('🔍 Debug - sendTaskSignal - reorderedData:', JSON.stringify(reorderedData));
 
   const cellLabel = formatCellLabel(selectedCell, currentKhu);
 
   const historyData = {
     cell: cellLabel,
-    currentKhu: currentKhu, // Thêm currentKhu vào historyData
+    currentKhu: currentKhu,
     timestamp: format(new Date(), 'dd/MM/yyyy HH:mm:ss'),
     sent_data: reorderedData,
     area: currentKhu,
@@ -62,9 +63,14 @@ export const sendTaskSignal = async (
     serverIP: ip,
     endpoint: defaultServers[index % defaultServers.length].endpoint,
   }));
+  console.log('🔍 Debug - sendTaskSignal - Servers và Endpoints:', servers.map(s => ({
+    apiUrl: `http://${s.serverIP}${s.endpoint}`,
+    endpoint: s.endpoint
+  })));
 
   try {
     const results = await sendData(reorderedData, null, null, null, servers, serverIPs);
+    console.log('🔍 Debug - sendTaskSignal - Kết quả từ sendData:', results);
     const allSuccess = results.every((result) => result.success);
     if (!allSuccess) {
       const failedServers = results
@@ -92,7 +98,7 @@ export const sendTaskSignal = async (
       message: `Đã gửi tín hiệu từ ô ${selectedCell} thành công tới tất cả server!`,
     };
   } catch (error) {
-    console.error('Lỗi khi gửi dữ liệu:', error);
+    console.error('❌ Lỗi khi gửi dữ liệu:', error);
     throw error;
   }
 };

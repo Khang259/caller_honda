@@ -16,9 +16,38 @@ class DataService:
         self.mongo = mongo_client
         self.collections = {
             "supplyanddemand": "task_path_supply_demand",
-            "supply": "task_path_supply", 
-            "demand": "task_path_demand"
+            "supply": "task_path_supply",
+            "demand": "task_path_demand",
+            # Variants per user groups (AE3/AE4)
+            "supply_ae3": "task_path_supply_ae3",
+            "demand_ae3": "task_path_demand_ae3",
+            "supply_ae4": "task_path_supply_ae4",
+            "demand_ae4": "task_path_demand_ae4",
         }
+
+    def _resolve_collection_by_user(self, khu_lower: str, username: Optional[str]) -> Optional[str]:
+        """Map khu + username to correct collection name.
+
+        Rules:
+        - Default: supply->task_path_supply, demand->task_path_demand, supplyanddemand->task_path_supply_demand
+        - If username contains "ae3": use *_ae3 variant for supply/demand
+        - If username contains "ae4": use *_ae4 variant for supply/demand
+        """
+        if not username:
+            return self.collections.get(khu_lower)
+
+        username_lower = str(username).lower()
+        try:
+            if khu_lower in ("supply", "demand"):
+                if "ae3" in username_lower:
+                    key = f"{khu_lower}_ae3"
+                    return self.collections.get(key, self.collections.get(khu_lower))
+                if "ae4" in username_lower:
+                    key = f"{khu_lower}_ae4"
+                    return self.collections.get(key, self.collections.get(khu_lower))
+            return self.collections.get(khu_lower)
+        except Exception:
+            return self.collections.get(khu_lower)
 
     def convert_objectid_to_str(self, data: Any) -> Any:
         """Convert MongoDB ObjectId to string for JSON serialization"""
@@ -32,45 +61,17 @@ class DataService:
             return data_dict
         return data
 
-    # async def get_stats(self, date: Optional[str] = None, days: Optional[int] = None) -> Dict[str, Any]:
-    #     """Get statistics directly from MongoDB"""
-    #     try:
-    #         # Get daily stats
-    #         daily_stats = self.get_request_count(date, days)
-            
-    #         # Get weekly stats
-    #         weekly_stats = self.get_request_count(days=7)
-            
-    #         # Get monthly stats  
-    #         monthly_stats = self.get_request_count(days=30)
-            
-    #         # Get status counts
-    #         status_counts = self.get_status_counts()
-            
-    #         return {
-    #             "totalOrders": daily_stats["totalOrders"],
-    #             "weeklyTotal": weekly_stats["totalOrders"],
-    #             "monthlyTotal": monthly_stats["totalOrders"],
-    #             "statusCounts": status_counts
-    #         }
-        # except Exception as e:
-        #     logger.error(f"Error getting stats: {e}")
-        #     return {
-        #         "totalOrders": 0,
-        #         "weeklyTotal": 0,
-        #         "monthlyTotal": 0,
-        #         "statusCounts": {"SupplyAndDemand": 0, "Supply": 0, "Demand": 0}
-        #     }
-
     async def send_periodic_stats(self):
         """Send periodic stats (kept for compatibility)"""
         stats = await self.get_stats()
         return stats
 
-    def get_task_data(self, khu: str) -> List[Dict[str, Any]]:
+    def get_task_data(self, khu: str, username: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get task data directly from MongoDB collections"""
         khu_lower = khu.lower()
-        collection = self.collections.get(khu_lower)
+        collection = self._resolve_collection_by_user(khu_lower, username)
+
+        logger.info(f"[GET_TASK_DATA] khu={khu} | username={username} | resolved_collection={collection}")
 
         logger.info(f"🔍 Debug: looking for key '{khu_lower}' in {list(self.collections.keys())}")
         logger.info(f"🔍 Debug: Collection found = {collection}")
@@ -80,7 +81,8 @@ class DataService:
                 data = self.mongo.find_all(collection)
                 cleaned_data = self.convert_objectid_to_str(data)
                 logger.info(f"✅ MongoDB Query: db.{collection}.find() -> {len(data)} records")
-                logger.info(f"📊 Collection: {collection} | Khu: {khu} | Records: {len(data)}")
+                logger.info(f"📊 Collection: {collection} | Khu: {khu} | Username: {username} | Records: {len(data)}")
+                logger.info(f"data trong collection: {data}")
                 return cleaned_data
             except Exception as e:
                 logger.error(f"❌ MongoDB query error for {collection}: {e}")
@@ -429,136 +431,77 @@ class DataService:
         """Get alarm message (placeholder)"""
         return {"status": "success", "message": "No alarms"}
 
-    def get_task_path_options(self, khu: str) -> Dict[str, Any]:
+    def get_task_path_options(self, khu: str, username: Optional[str] = None) -> Dict[str, Any]:
         """Get task path options for specific khu from correct collection"""
         try:
-            # Đảm bảo khu là string và clean
-            khu_str = str(khu).strip() if khu else ""
-            logger.info(f"🔍 Debug - Original khu: {khu}, type: {type(khu)}")
-            logger.info(f"🔍 Debug - Cleaned khu: {khu_str}, type: {type(khu_str)}")
-            
+            khu_str = str(khu).strip().lower() if khu else ""
+            logger.info(f"🔍 Debug - Original khu: {khu}, Cleaned khu: {khu_str}, Username: {username}")
+
             # Map khu to correct collection name
-            collection_mapping = {
-                "SupplyAndDemand": "task_path_supply_demand",
-                "Supply": "task_path_supply",
-                "Demand": "task_path_demand"
-            }
-            
-            collection_name = collection_mapping.get(khu_str)
+            user = str(username).strip().lower() if username else ""
+            if khu_str == "supplyanddemand":
+                collection_name = "task_path_supply_demand"
+            elif khu_str == "supply":
+                if "ae3" in user:
+                    collection_name = "task_path_supply_ae3"
+                elif "ae4" in user:
+                    collection_name = "task_path_supply_ae4"
+                else:
+                    collection_name = "task_path_supply"
+            elif khu_str == "demand":
+                if "ae3" in user:
+                    collection_name = "task_path_demand_ae3"
+                elif "ae4" in user:
+                    collection_name = "task_path_demand_ae4"
+                else:
+                    collection_name = "task_path_demand"
+            else:
+                collection_name = None
+
+            logger.info(f"🔍 Using collection: {collection_name} (user={username})")
+
             if not collection_name:
                 logger.error(f"Không hỗ trợ khu: {khu_str}")
                 return self._get_default_options(khu_str)
-            
-            logger.info(f"🔍 Using collection: {collection_name}")
-            
+
             # Get options from MongoDB
             collection = self.mongo.get_collection(collection_name)
-            
-            # Tìm document theo khu - sửa query để tránh lỗi tuple
-            query = {"khu": khu_str}
-            
-            logger.info(f"🔍 Search query: {query}")
-            
-            # Thử tìm document
-            try:
-                sample_doc = collection.find_one(query)
-                logger.info(f"🔍 MongoDB query result: {sample_doc}")
-            except Exception as mongo_error:
-                logger.error(f"❌ MongoDB query error: {mongo_error}")
-                # Fallback: tìm tất cả documents và filter
-                all_docs = list(collection.find({}))
-                logger.info(f"🔍 Found {len(all_docs)} total documents")
-                
-                # Filter theo khu
-                sample_doc = None
-                for doc in all_docs:
-                    if doc.get("khu") == khu_str:
-                        sample_doc = doc
-                        break
-                
-                logger.info(f"🔍 Filtered document: {sample_doc}")
-            
-            if not sample_doc:
-                logger.warning(f"Không tìm thấy options cho khu: {khu_str} trong collection {collection_name}")
+            documents = list(collection.find({}))  # Lấy tất cả document
+            logger.info(f"🔍 MongoDB query result: {len(documents)} documents found")
+
+            if not documents:
+                logger.warning(f"Không tìm thấy dữ liệu trong collection {collection_name}")
                 return self._get_default_options(khu_str)
-            
-            # Extract options từ document
-            options = self._extract_options_from_document(sample_doc, khu_str)
-            logger.info(f"✅ Successfully extracted options for khu {khu_str}")
+
+            # Extract taskPath from documents
+            steps = {}
+            for index, doc in enumerate(documents, 1):
+                if "value" in doc and "taskOrderDetail" in doc["value"] and doc["value"]["taskOrderDetail"]:
+                    task_path = doc["value"]["taskOrderDetail"][0].get("taskPath", "")
+                    if task_path:
+                        options = task_path.split(",")
+                        steps[f"step{index}"] = {
+                            "label": f"Bước {index}",
+                            "options": [opt.strip() for opt in options if opt.strip()]
+                        }
+                    else:
+                        steps[f"step{index}"] = {
+                            "label": f"Bước {index}",
+                            "options": []
+                        }
+                else:
+                    steps[f"step{index}"] = {
+                        "label": f"Bước {index}",
+                        "options": []
+                    }
+
+            options = {"steps": steps}
+            logger.info(f"✅ Successfully extracted options for khu {khu_str}: {options}")
             return options
-            
+
         except Exception as e:
             logger.error(f"❌ Error getting task path options for {khu}: {e}")
-            logger.error(f"❌ Error type: {type(e)}")
-            logger.error(f"❌ Error details: {str(e)}")
-            # Return default options on error
-            return self._get_default_options(str(khu) if khu else "SupplyAndDemand")
-
-    def _get_default_options(self, khu: str) -> Dict[str, Any]:
-        """Get default options structure for khu"""
-        try:
-            # Đảm bảo khu là string
-            khu_str = str(khu).strip() if khu else "SupplyAndDemand"
-            logger.info(f"🔍 Getting default options for khu: {khu_str}")
-            
-            default_options = {
-                "SupplyAndDemand": {
-                    "steps": {
-                        "step1": {
-                            "label": "Bước 1 - Model Process",
-                            "options": ["10000186", "10000187", "10000188", "10000189", "10000190"]
-                        },
-                        "step2": {
-                            "label": "Bước 2 - From System",
-                            "options": ["10001151", "10001152", "10001153", "10001154", "10001155"]
-                        },
-                        "step3": {
-                            "label": "Bước 3 - Task Order",
-                            "options": ["10001150", "10001151", "10001152", "10001153", "10001154"]
-                        },
-                        "step4": {
-                            "label": "Bước 4 - Cell Selection",
-                            "options": ["10000196", "10000197", "10000198", "10000199", "10000200"]
-                        }
-                    }
-                },
-                "Supply": {
-                    "steps": {
-                        "step1": {
-                            "label": "Bước 1 - Supply Process",
-                            "options": ["20000186", "20000187", "20000188", "20000189", "20000190"]
-                        },
-                        "step2": {
-                            "label": "Bước 2 - Supply System",
-                            "options": ["20001151", "20001152", "20001153", "20001154", "20001155"]
-                        }
-                    }
-                },
-                "Demand": {
-                    "steps": {
-                        "step1": {
-                            "label": "Bước 1 - Demand Process",
-                            "options": ["30000186", "30000187", "30000188", "30000189", "30000190"]
-                        },
-                        "step2": {
-                            "label": "Bước 2 - Demand System",
-                            "options": ["30001151", "30001152", "30001153", "30001154", "30001155"]
-                        },
-                        "step3": {
-                            "label": "Bước 3 - Demand Order",
-                            "options": ["30001150", "30001151", "30001152", "30001153", "30001154"]
-                        }
-                    }
-                }
-            }
-            
-            result = default_options.get(khu_str, {})
-            logger.info(f"✅ Returning default options for khu {khu_str}: {len(result.get('steps', {}))} steps")
-            return result
-            
-        except Exception as e:
-            logger.error(f"❌ Error in _get_default_options: {e}")
-            return {}
+            return self._get_default_options(khu_str)
 
     def _extract_options_from_document(self, doc: Dict[str, Any], khu: str) -> Dict[str, Any]:
         """Extract options from MongoDB document"""

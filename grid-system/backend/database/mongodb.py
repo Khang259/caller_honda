@@ -14,7 +14,11 @@ class MongoDBClient:
         self.db.task_path_supply.create_index("cell")
         self.db.task_path_supply_demand.create_index("cell")
         self.db.task_path_demand.create_index("cell")
-        self.db.server_to_client_requests.create_index("timestamp")  # Thêm index
+        self.db.task_path_supply_ae3.create_index("cell")
+        self.db.task_path_supply_ae4.create_index("cell")
+        self.db.task_path_demand_ae3.create_index("cell")
+        self.db.task_path_demand_ae4.create_index("cell")
+        self.db.server_to_client_requests.create_index("timestamp")
 
     def convert_objectid_to_str(self, data: Any) -> Any:
         """Chuyển ObjectId thành chuỗi trong dữ liệu."""

@@ -105,7 +105,7 @@ const useTaskData = (serverIPs, activeKhu, gridConfig) => {
       if (savedConfig.serverIPs && savedConfig.serverIPs.length > 0) {
         const finalServerIP = savedConfig.serverIPs[0];
         try {
-          const data = await fetchTaskData(finalServerIP, activeKhu);
+          const data = await fetchTaskData(finalServerIP, activeKhu, (JSON.parse(localStorage.getItem('currentUser') || '{}')).username);
           if (latestKhuRef.current === khuAtStart) {
             setTaskData(data);
             console.log(`✅ Dữ liệu từ MongoDB (${activeKhu}):`, data);
@@ -122,7 +122,7 @@ const useTaskData = (serverIPs, activeKhu, gridConfig) => {
       }
     } else {
       try {
-        const data = await fetchTaskData(serverIP, activeKhu);
+        const data = await fetchTaskData(serverIP, activeKhu, (JSON.parse(localStorage.getItem('currentUser') || '{}')).username);
         if (latestKhuRef.current === khuAtStart) {
           setTaskData(data);
           console.log(`✅ Dữ liệu từ MongoDB (${activeKhu}):`, data);
