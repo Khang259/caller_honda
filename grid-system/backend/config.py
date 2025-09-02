@@ -28,7 +28,7 @@ class AppConfig:
     """Cấu hình ứng dụng - Single Source of Truth"""
     
     # Database
-    mongodb_url: str = "mongodb://localhost:27018/"
+    mongodb_url: str = "mongodb://localhost:27017/"
     redis_url: str = "redis://localhost:6379/0"
     database_name: str = "grid_system"
     

@@ -65,10 +65,6 @@ frontend_app.add_middleware(
     allow_headers=["*"],
 )
 
-if os.path.exists("dist"):
-    print("Files in dist:", os.listdir("dist"))
-else:
-    print("dist directory is missing!")
 
 # Khởi tạo MongoDB và Redis
 mongo_client = MongoDBClient(config.mongodb_url, config.database_name)

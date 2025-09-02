@@ -85,16 +85,17 @@ const MobileGridDisplay = () => {
   const effectiveServerIPICS = serverIPs && serverIPs.length > 1 ? serverIPs[1] : null;
   const currentKhuConfig = selectedKhu ? dynamicKhuConfig[selectedKhu] : null;
   const isSetupComplete = useMemo(() => {
+    // Chỉ cần chọn 1 option là đủ để hiển thị nút gửi
     const result = selectedKhu && 
       taskPathElements.length > 0 && 
-      Object.keys(selectedElements).length === taskPathElements.length &&
-      Object.values(selectedElements).every(value => value.trim() !== '');
+      Object.keys(selectedElements).length > 0 &&
+      Object.values(selectedElements).some(value => value.trim() !== '');
     console.log('🔍 Debug - isSetupComplete:', {
       selectedKhu,
       hasTaskPathElements: taskPathElements.length > 0,
       selectedElementsCount: Object.keys(selectedElements).length,
       taskPathElementsCount: taskPathElements.length,
-      allElementsSelected: Object.values(selectedElements).every(value => value.trim() !== ''),
+      hasAnyElementSelected: Object.values(selectedElements).some(value => value.trim() !== ''),
       result
     });
     return result;
@@ -280,13 +281,23 @@ const MobileGridDisplay = () => {
       const countJson = await countResp.json();
       if (countJson.status === 'error') throw new Error(countJson.message);
       const newOrderId = `Superlification_${countJson.orderCount}`;
+
+      let taskPath = Object.values(selectedElements).join(',');
+
+      if (isUserAE3()) {
+        taskPath += ', 10000671';
+        console.log('🔍 Debug - User AE3: thêm 10000671 vào taskPath');
+      } else if (isUserAE4()) {
+        taskPath += ', 10000670';
+        console.log('🔍 Debug - User AE4: thêm 10000670 vào taskPath');
+      }
       const payload = {
-        modelProcessCode: "1302",
+        modelProcessCode: "capxeAE34",
         fromSystem: "thadosoft",
         orderId: newOrderId,
         taskOrderDetail: [{ taskPath: Object.values(selectedElements).join(',') }]
       };
-      const apiUrl = `http://${effectiveServerIPICS}/ics/taskOrder/addTask?username=${currentUser.username}`;
+      const apiUrl = `http://${effectiveServerIPICS}/ics/taskOrder/addTask`;
       console.log('🔍 Debug - checkSetupAvailability API:', { apiUrl, payload: JSON.stringify(payload) });
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -295,7 +306,7 @@ const MobileGridDisplay = () => {
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const result = await response.json();
-      if (result.code === 1000) {
+      if (response.code === 200) {
         setSuccessMessage('Gửi lệnh thành công!');
         setShowSuccessModal(true);
         setTimeout(() => {
@@ -316,7 +327,7 @@ const MobileGridDisplay = () => {
     } finally {
       setIsChecking(false);
     }
-  }, [effectiveServerIP, effectiveServerIPICS, currentKhuConfig, isSetupComplete, selectedElements, selectedKhu, currentUser]);
+  }, [effectiveServerIP, effectiveServerIPICS, currentKhuConfig, isSetupComplete, selectedElements, selectedKhu, currentUser, isUserAE3, isUserAE4]);
 
   // Send task signal cho grid (mới, giống GridDisplay.jsx)
   const handleSendSignalGrid = useCallback(async () => {
@@ -509,25 +520,36 @@ const MobileGridDisplay = () => {
   // Render task path elements cho dropdown (chỉ cho Demand)
   const renderTaskPathElements = useCallback(() => {
     if (!taskPathElements || taskPathElements.length === 0) return null;
+    
+    // Tạo options từ tất cả các bước
+    const allOptions = taskPathElements.map((element, index) => {
+      const firstOption = element.options && element.options.length > 0 ? element.options[0] : '';
+      return {
+        value: firstOption,
+        label: `${element.label}: ${firstOption}`
+      };
+    });
+    
+    // Giá trị mặc định là phần tử đầu tiên của bước đầu tiên
+    const defaultValue = allOptions.length > 0 ? allOptions[0].value : '';
+    
     return (
       <div className="mb-3">
         <Form.Label><strong>Chọn vị trí trả trống:</strong></Form.Label>
-        {taskPathElements.map((element) => (
-          <Form.Group key={element.id} className="mb-2">
-            <Form.Label>{element.label}:</Form.Label>
-            <Form.Select
-              value={selectedElements[element.id] || ''}
-              onChange={(e) => handleElementChange(element.id, e.target.value)}
-            >
-              <option value="">Vị trí lấy xe trả trống</option>
-              {element.options.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-        ))}
+        <Form.Group className="mb-2">
+          <Form.Label>Vị trí:</Form.Label>
+          <Form.Select
+            value={selectedElements[1] || defaultValue}
+            onChange={(e) => handleElementChange(1, e.target.value)}
+          >
+            <option value="">Vị trí lấy xe trả trống</option>
+            {allOptions.map((option, index) => (
+              <option key={index} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Form.Select>
+        </Form.Group>
       </div>
     );
   }, [taskPathElements, selectedElements, handleElementChange]);
@@ -677,11 +699,11 @@ const MobileGridDisplay = () => {
           )}
 
           {/* Debug Info */}
-          {isSetupComplete && selectedKhu === 'Demand' && (
+          {/* {isSetupComplete && selectedKhu === 'Demand' && (
             <Alert variant="info" className="mb-3">
               <strong>Setup hoàn thành:</strong> {Object.values(selectedElements).join(', ')}
             </Alert>
-          )}
+          )} */}
 
           {/* Gửi lệnh Button (cho dropdown mode, chỉ hiển thị khi Demand) */}
           {selectedKhu === 'Demand' && renderCheckButton()}
