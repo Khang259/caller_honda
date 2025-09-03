@@ -6,7 +6,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { useTasks } from '../contexts/TaskContext';
 import { sendTaskSignal } from '../services/task';
 import { fetchConfig } from '../services/config';
-import { formatCellLabel } from '../utils/format';
+import { formatCellLabel, formatOptionLabel, formatSupplyCellLabel } from '../utils/format';
 import ContextMenu from './ContextMenu';
 import '../styles/GridDisplay.css';
 
@@ -295,7 +295,7 @@ const MobileGridDisplay = () => {
         modelProcessCode: "capxeAE34",
         fromSystem: "thadosoft",
         orderId: newOrderId,
-        taskOrderDetail: [{ taskPath: Object.values(selectedElements).join(',') }]
+        taskOrderDetail: [{ taskPath: taskPath }]
       };
       const apiUrl = `http://${effectiveServerIPICS}/ics/taskOrder/addTask`;
       console.log('🔍 Debug - checkSetupAvailability API:', { apiUrl, payload: JSON.stringify(payload) });
@@ -352,11 +352,14 @@ const MobileGridDisplay = () => {
         throw new Error(`Không tìm thấy taskPath cho ô ${selectedCell}`);
       }
       const payload = {
+        modelProcessCode: "capxeAE34",
+        fromSystem: "thadosoft",
         cell: selectedCell,
         khu: selectedKhu,
         taskPath: taskPath,
         collection: currentKhuConfig.collection,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        taskOrderDetail: [{ taskPath: taskPath }]
       };
       const apiUrl = serverIPs.map((ip, index) => {
         const endpoint = index === 0 ? '/submit-data' : '/ics/out/endTask';
@@ -469,7 +472,7 @@ const MobileGridDisplay = () => {
   const renderGridCell = useCallback((cellNumber) => {
     const cellState = cellStates[cellNumber] || '#14a65f';
     const cellData = taskData.find(item => item.cell === `cell-${cellNumber}`);
-    const cellLabel = formatCellLabel(cellNumber, selectedKhu);
+    const cellLabel = formatSupplyCellLabel(cellNumber, selectedKhu, isUserAE3(), isUserAE4());
 
     return (
       <div className="col-4 col-sm-3" key={cellNumber}>
@@ -496,7 +499,7 @@ const MobileGridDisplay = () => {
         </div>
       </div>
     );
-  }, [cellStates, taskData, handleCellClick, handleCellRightClick, selectedKhu]);
+  }, [cellStates, taskData, handleCellClick, handleCellRightClick, selectedKhu, isUserAE3, isUserAE4]);
 
   // Render grid cho Supply
   const renderGrid = useCallback(() => {
@@ -526,7 +529,7 @@ const MobileGridDisplay = () => {
       const firstOption = element.options && element.options.length > 0 ? element.options[0] : '';
       return {
         value: firstOption,
-        label: `${element.label}: ${firstOption}`
+        label: formatOptionLabel(firstOption) // Sử dụng formatOptionLabel để hiển thị label đẹp
       };
     });
     
@@ -558,6 +561,10 @@ const MobileGridDisplay = () => {
   const renderCheckButton = useCallback(() => {
     if (!isSetupComplete) return null;
     console.log('🔍 Debug - renderCheckButton called');
+    
+    // Format display labels cho button text
+    const displayLabels = Object.values(selectedElements).map(value => formatOptionLabel(value));
+    
     return (
       <div className="mb-3">
         <Button
@@ -572,7 +579,7 @@ const MobileGridDisplay = () => {
               Đang gửi lệnh...
             </>
           ) : (
-            `Gửi lệnh với Task Path: ${Object.values(selectedElements).join(',')}`
+            `Gửi lệnh đến lấy xe trả trống: ${displayLabels.join(', ')}`
           )}
         </Button>
       </div>
