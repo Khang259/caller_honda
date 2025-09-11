@@ -41,6 +41,11 @@
   
   /* Responsive cho màn hình rất nhỏ (dưới 480px, nếu cần) */
   @media (max-width: 480px) {
+    .grid-task{
+      height: 60px;
+      font-stretch: 1rem;
+      margin: 10px;
+    }
     .grid-cell {
       height: 50px;
       margin: 2px; /* Giảm margin xuống 2px */
@@ -62,9 +67,6 @@
 
     .card-body {
         padding: 0 ; 
-    }
-    .grid-cell {
-      font-size: 1.2rem;
     }
   }
   

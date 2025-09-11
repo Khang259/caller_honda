@@ -1,3 +1,4 @@
+// src/components/MobileGridDisplay.jsx
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Card, Button, Form, Alert, Spinner, Modal } from 'react-bootstrap';
 import { useHistory } from '../contexts/HistoryContext';
@@ -6,7 +7,7 @@ import { useSettings } from '../contexts/SettingsContext';
 import { useTasks } from '../contexts/TaskContext';
 import { sendTaskSignal } from '../services/task';
 import { fetchConfig } from '../services/config';
-import { formatCellLabel, formatOptionLabel, formatSupplyCellLabel } from '../utils/format';
+import { formatSupplyCellLabel, formatDemandCellLabel } from '../utils/format';
 import ContextMenu from './ContextMenu';
 import '../styles/GridDisplay.css';
 
@@ -40,8 +41,6 @@ const MobileGridDisplay = () => {
   const [availableCells, setAvailableCells] = useState([]);
   const [selectedCell, setSelectedCell] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
-  const [checkResult, setCheckResult] = useState(null);
   const [isSending, setIsSending] = useState(false);
   const [sendResult, setSendResult] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -84,22 +83,6 @@ const MobileGridDisplay = () => {
   const effectiveServerIP = serverIPs && serverIPs.length > 0 ? serverIPs[0] : null;
   const effectiveServerIPICS = serverIPs && serverIPs.length > 1 ? serverIPs[1] : null;
   const currentKhuConfig = selectedKhu ? dynamicKhuConfig[selectedKhu] : null;
-  const isSetupComplete = useMemo(() => {
-    // Chỉ cần chọn 1 option là đủ để hiển thị nút gửi
-    const result = selectedKhu && 
-      taskPathElements.length > 0 && 
-      Object.keys(selectedElements).length > 0 &&
-      Object.values(selectedElements).some(value => value.trim() !== '');
-    console.log('🔍 Debug - isSetupComplete:', {
-      selectedKhu,
-      hasTaskPathElements: taskPathElements.length > 0,
-      selectedElementsCount: Object.keys(selectedElements).length,
-      taskPathElementsCount: taskPathElements.length,
-      hasAnyElementSelected: Object.values(selectedElements).some(value => value.trim() !== ''),
-      result
-    });
-    return result;
-  }, [selectedKhu, taskPathElements, selectedElements]);
 
   // Load grid configuration
   const loadGridConfig = useCallback(async () => {
@@ -131,7 +114,8 @@ const MobileGridDisplay = () => {
     }
     setIsLoading(true);
     try {
-      const apiUrl = `http://${effectiveServerIP}/api/grid/options/${selectedKhu}?username=${currentUser.username}`;
+      // const apiUrl = `http://192.168.1.7:1838/api/grid/options/${selectedKhu}?username=${currentUser.username}`;
+      const apiUrl = `http://192.168.1.7:1838/api/grid/options/${selectedKhu}?username=${currentUser.username}`;
       console.log('🔗 API URL:', apiUrl);
       const response = await fetch(apiUrl);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -166,12 +150,12 @@ const MobileGridDisplay = () => {
 
   // Load task data for grid
   const loadTaskData = useCallback(async () => {
-    if (!effectiveServerIP || !selectedKhu || selectedKhu !== 'Supply' || !currentUser || isTaskDataLoaded.current) {
+    if (!effectiveServerIP || !selectedKhu || !currentUser || isTaskDataLoaded.current) {
       return;
     }
     setIsLoading(true);
     try {
-      const apiUrl = `http://${effectiveServerIP}/get-task-data/${selectedKhu}?username=${currentUser.username}`;
+      const apiUrl = `http://192.168.1.7:1838/get-task-data/${selectedKhu}?username=${currentUser.username}`;
       console.log('🔗 Fetching task data from:', apiUrl);
       const response = await fetch(apiUrl);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -204,8 +188,8 @@ const MobileGridDisplay = () => {
       loadTaskPathElements();
       if (selectedKhu === 'Supply') {
         loadGridConfig();
-        loadTaskData();
       }
+      loadTaskData(); // Load task data cho cả Supply và Demand
     }
   }, [selectedKhu, currentKhuConfig, loadTaskPathElements, loadGridConfig, loadTaskData]);
 
@@ -216,7 +200,6 @@ const MobileGridDisplay = () => {
     setSelectedElements({});
     setSelectedCell('');
     setAvailableCells([]);
-    setCheckResult(null);
     setSendResult(null);
     setCellStates({});
     setTaskData([]);
@@ -239,11 +222,11 @@ const MobileGridDisplay = () => {
 
   // Handle cell click cho grid
   const handleCellClick = useCallback((cellNumber) => {
-    console.log(`🖱️ Ô được chọn: cell-${cellNumber}`);
+    console.log(`🖱️ Ô được chọn: cell-${cellNumber} cho khu ${selectedKhu}`);
     setSelectedCell(cellNumber);
     setSendResult(null);
     setShowSuccessModal(true);
-  }, []);
+  }, [selectedKhu]);
 
   // Handle right-click cho context menu
   const handleCellRightClick = useCallback((e, cellNumber) => {
@@ -261,75 +244,8 @@ const MobileGridDisplay = () => {
     setContextMenu(prev => ({ ...prev, show: false }));
   }, []);
 
-  // Check setup availability (cho chế độ dropdown)
-  const checkSetupAvailability = useCallback(async () => {
-    if (!effectiveServerIPICS || !currentKhuConfig || !isSetupComplete || !currentUser) {
-      console.log('🔍 Debug - Bỏ qua checkSetupAvailability: thiếu điều kiện', {
-        effectiveServerIPICS,
-        currentKhuConfig,
-        isSetupComplete,
-        currentUser
-      });
-      return;
-    }
-    setIsChecking(true);
-    setCheckResult(null);
-    try {
-      console.log('🔍 Debug - Bắt đầu checkSetupAvailability');
-      const countResp = await fetch(`http://${effectiveServerIP}/getOrderCount`);
-      if (!countResp.ok) throw new Error(`HTTP ${countResp.status}`);
-      const countJson = await countResp.json();
-      if (countJson.status === 'error') throw new Error(countJson.message);
-      const newOrderId = `Superlification_${countJson.orderCount}`;
 
-      let taskPath = Object.values(selectedElements).join(',');
-
-      if (isUserAE3()) {
-        taskPath += ', 10000671';
-        console.log('🔍 Debug - User AE3: thêm 10000671 vào taskPath');
-      } else if (isUserAE4()) {
-        taskPath += ', 10000670';
-        console.log('🔍 Debug - User AE4: thêm 10000670 vào taskPath');
-      }
-      const payload = {
-        modelProcessCode: "capxeAE34",
-        fromSystem: "thadosoft",
-        orderId: newOrderId,
-        taskOrderDetail: [{ taskPath: taskPath }]
-      };
-      const apiUrl = `http://${effectiveServerIPICS}/ics/taskOrder/addTask`;
-      console.log('🔍 Debug - checkSetupAvailability API:', { apiUrl, payload: JSON.stringify(payload) });
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const result = await response.json();
-      if (response.code === 200) {
-        setSuccessMessage('Gửi lệnh thành công!');
-        setShowSuccessModal(true);
-        setTimeout(() => {
-          setSelectedKhu('');
-          setTaskPathElements([]);
-          setSelectedElements({});
-          setSelectedCell('');
-          setAvailableCells([]);
-          setCheckResult(null);
-          setShowSuccessModal(false);
-        }, 2000);
-      } else {
-        setCheckResult({ success: false, message: `Lỗi từ server: ${result.message}` });
-      }
-    } catch (error) {
-      console.error('❌ Lỗi checkSetupAvailability:', error);
-      setCheckResult({ success: false, message: `Lỗi: ${error.message}` });
-    } finally {
-      setIsChecking(false);
-    }
-  }, [effectiveServerIP, effectiveServerIPICS, currentKhuConfig, isSetupComplete, selectedElements, selectedKhu, currentUser, isUserAE3, isUserAE4]);
-
-  // Send task signal cho grid (mới, giống GridDisplay.jsx)
+  // Send task signal cho grid (cho cả Supply và Demand)
   const handleSendSignalGrid = useCallback(async () => {
     if (isSending) {
       console.log('🔍 Debug - Bỏ qua handleSendSignalGrid: đang gửi');
@@ -338,48 +254,75 @@ const MobileGridDisplay = () => {
     setIsSending(true);
     setSendResult(null);
     try {
-      console.log('🔍 Debug - Bắt đầu handleSendSignalGrid');
+      console.log('🔍 Debug - Bắt đầu handleSendSignalGrid cho khu:', selectedKhu);
       const selectedData = taskData.find(item => item.cell === `cell-${selectedCell}`);
       if (!selectedData) {
         if (taskData.length === 0) {
-          throw new Error(`Không có dữ liệu trong MongoDB cho khu vực ${currentKhuConfig.label}. Vui lòng kiểm tra lại sau.`);
+          throw new Error(`Không có dữ liệu trong MongoDB cho khu vực ${currentKhuConfig?.label}. Vui lòng kiểm tra lại sau.`);
         } else {
           throw new Error(`Không tìm thấy dữ liệu cho ô ${selectedCell} trong MongoDB. Có thể ô này chưa được cập nhật.`);
         }
       }
-      const taskPath = selectedData.value?.taskOrderDetail?.[0]?.taskPath || '';
-      if (!taskPath) {
-        throw new Error(`Không tìm thấy taskPath cho ô ${selectedCell}`);
+      
+      let taskPath = '';
+      if (selectedKhu === 'Supply') {
+        taskPath = selectedData.value?.taskOrderDetail?.[0]?.taskPath || '';
+        if (!taskPath) {
+          throw new Error(`Không tìm thấy taskPath cho ô ${selectedCell}`);
+        }
+      } else if (selectedKhu === 'Demand') {
+        // Cho Demand, lấy taskPath từ selectedData hoặc tạo từ taskPathElements
+        taskPath = selectedData.value?.taskOrderDetail?.[0]?.taskPath || '';
+        if (!taskPath && taskPathElements.length > 0) {
+          // Fallback: tạo taskPath từ taskPathElements
+          const firstOptions = taskPathElements.map(element => 
+            element.options && element.options.length > 0 ? element.options[0] : ''
+          ).filter(option => option.trim() !== '');
+          taskPath = firstOptions.join(',');
+        }
+        if (!taskPath) {
+          throw new Error(`Không tìm thấy taskPath cho ô ${selectedCell}`);
+        }
+        // Thêm suffix theo user type
+        if (isUserAE3()) {
+          taskPath += ',10000671';
+        } else if (isUserAE4()) {
+          taskPath += ',10000670';
+        }
       }
+      
       const payload = {
-        modelProcessCode: "capxeAE34",
+        modelProcessCode: selectedKhu === 'Supply' ? "capxeAE34" : "capxeAE3",
         fromSystem: "thadosoft",
         cell: selectedCell,
         khu: selectedKhu,
         taskPath: taskPath,
-        collection: currentKhuConfig.collection,
+        collection: currentKhuConfig?.collection,
         timestamp: new Date().toISOString(),
         taskOrderDetail: [{ taskPath: taskPath }]
       };
+      
       const apiUrl = serverIPs.map((ip, index) => {
         const endpoint = index === 0 ? '/submit-data' : '/ics/out/endTask';
         return `http://${ip}${endpoint}`;
       });
+      
       console.log('🔍 Debug - handleSendSignalGrid API:', {
         apiUrls: apiUrl,
         endpoints: serverIPs.map((_, index) => index === 0 ? '/submit-data' : '/ics/out/endTask'),
         payload: JSON.stringify(payload)
       });
+      
       const result = await sendTaskSignal(
         serverIPs,
         payload,
         selectedCell,
-        currentKhuConfig.khu,
+        selectedKhu,
         addTask,
         addHistoryRecord,
         setCellStates,
         () => setShowSuccessModal(false),
-        { [currentKhuConfig.khu]: '#14a65f' }
+        { [selectedKhu]: '#14a65f' }
       );
       setSendResult(result);
     } catch (error) {
@@ -393,86 +336,18 @@ const MobileGridDisplay = () => {
     } finally {
       setIsSending(false);
     }
-  }, [isSending, taskData, selectedCell, currentKhuConfig, serverIPs, addTask, addHistoryRecord]);
+  }, [isSending, taskData, selectedCell, currentKhuConfig, serverIPs, addTask, addHistoryRecord, selectedKhu, taskPathElements, isUserAE3, isUserAE4]);
 
-  // Send task signal cho dropdown (giữ nguyên cho Demand)
-  const handleSendSignal = useCallback(async () => {
-    console.log('🔍 Debug - handleSendSignal called', {
-      selectedCell,
-      isSetupComplete,
-      selectedKhu,
-      taskPathElements,
-      selectedElements
-    });
-    if (!selectedCell || !isSetupComplete || selectedKhu !== 'Demand') {
-      console.log('🔍 Debug - Bỏ qua handleSendSignal: thiếu điều kiện', {
-        selectedCell,
-        isSetupComplete,
-        selectedKhu
-      });
-      return;
-    }
-    setIsSending(true);
-    setSendResult(null);
-    try {
-      console.log('🔍 Debug - Bắt đầu handleSendSignal');
-      const selectedData = taskData.find(item => item.cell === `cell-${selectedCell}`);
-      if (!selectedData) throw new Error(`Không tìm thấy dữ liệu cho ô ${selectedCell}`);
-      const payload = {
-        cell: selectedCell,
-        khu: selectedKhu,
-        taskPath: Object.values(selectedElements).join(','),
-        collection: currentKhuConfig.collection,
-        timestamp: new Date().toISOString()
-      };
-      const apiUrl = serverIPs.map((ip, index) => {
-        const endpoint = index === 0 ? '/submit-data' : '/ics/out/endTask';
-        return `http://${ip}${endpoint}`;
-      });
-      console.log('🔍 Debug - handleSendSignal API:', {
-        apiUrls: apiUrl,
-        endpoints: serverIPs.map((_, index) => index === 0 ? '/submit-data' : '/ics/out/endTask'),
-        payload: JSON.stringify(payload)
-      });
-      const result = await sendTaskSignal(
-        serverIPs,
-        payload,
-        selectedCell,
-        selectedKhu,
-        addTask,
-        addHistoryRecord,
-        setCellStates,
-        () => setShowSuccessModal(false),
-        { [selectedKhu]: '#14a65f' }
-      );
-      setSendResult(result);
-      if (result.success) {
-        setSelectedKhu('');
-        setTaskPathElements([]);
-        setSelectedElements({});
-        setSelectedCell('');
-        setAvailableCells([]);
-        setCheckResult(null);
-      }
-    } catch (error) {
-      console.error('❌ Lỗi handleSendSignal:', error);
-      setSendResult({ success: false, message: `Lỗi: ${error.message}` });
-    } finally {
-      setIsSending(false);
-    }
-  }, [selectedCell, isSetupComplete, selectedKhu, selectedElements, currentKhuConfig, serverIPs, addTask, addHistoryRecord, taskData]);
-
-  // Handle element selection cho dropdown
-  const handleElementChange = useCallback((elementId, value) => {
-    console.log('🔍 Debug - handleElementChange:', { elementId, value });
-    setSelectedElements(prev => ({ ...prev, [elementId]: value }));
-  }, []);
 
   // Render grid cell
   const renderGridCell = useCallback((cellNumber) => {
     const cellState = cellStates[cellNumber] || '#14a65f';
     const cellData = taskData.find(item => item.cell === `cell-${cellNumber}`);
-    const cellLabel = formatSupplyCellLabel(cellNumber, selectedKhu, isUserAE3(), isUserAE4());
+    const cellLabel = selectedKhu === 'Supply' 
+      ? formatSupplyCellLabel(cellNumber, selectedKhu, isUserAE3(), isUserAE4())
+      : selectedKhu === 'Demand'
+      ? formatDemandCellLabel(cellNumber, selectedKhu, isUserAE3(), isUserAE4())
+      : `Ô ${cellNumber}`;
 
     return (
       <div className="col-4 col-sm-3" key={cellNumber}>
@@ -501,9 +376,9 @@ const MobileGridDisplay = () => {
     );
   }, [cellStates, taskData, handleCellClick, handleCellRightClick, selectedKhu, isUserAE3, isUserAE4]);
 
-  // Render grid cho Supply
+  // Render grid cho Supply và Demand
   const renderGrid = useCallback(() => {
-    console.log('🔍 Debug - renderGrid called');
+    console.log('🔍 Debug - renderGrid called for khu:', selectedKhu);
     if (isLoading) return <div className="text-center">Đang tải dữ liệu ...</div>;
     if (!taskData || taskData.length === 0) {
       return (
@@ -511,80 +386,15 @@ const MobileGridDisplay = () => {
           <div className="mb-2">
             <i className="bi bi-database-x fs-1"></i>
           </div>
-          <div>Không có dữ liệu cho khu vực {currentKhuConfig.label}</div>
+          <div>Không có dữ liệu cho khu vực {currentKhuConfig?.label}</div>
         </div>
       );
     }
     const totalCells = getTotalCells();
     console.log('🔍 Debug - totalCells:', totalCells);
     return Array.from({ length: totalCells }, (_, index) => renderGridCell(index + 1));
-  }, [isLoading, taskData, currentKhuConfig, renderGridCell]);
+  }, [isLoading, taskData, currentKhuConfig, selectedKhu, renderGridCell]);
 
-  // Render task path elements cho dropdown (chỉ cho Demand)
-  const renderTaskPathElements = useCallback(() => {
-    if (!taskPathElements || taskPathElements.length === 0) return null;
-    
-    // Tạo options từ tất cả các bước
-    const allOptions = taskPathElements.map((element, index) => {
-      const firstOption = element.options && element.options.length > 0 ? element.options[0] : '';
-      return {
-        value: firstOption,
-        label: formatOptionLabel(firstOption) // Sử dụng formatOptionLabel để hiển thị label đẹp
-      };
-    });
-    
-    // Giá trị mặc định là phần tử đầu tiên của bước đầu tiên
-    const defaultValue = allOptions.length > 0 ? allOptions[0].value : '';
-    
-    return (
-      <div className="mb-3">
-        <Form.Label><strong>Chọn vị trí trả trống:</strong></Form.Label>
-        <Form.Group className="mb-2">
-          <Form.Label>Vị trí:</Form.Label>
-          <Form.Select
-            value={selectedElements[1] || defaultValue}
-            onChange={(e) => handleElementChange(1, e.target.value)}
-          >
-            <option value="">Vị trí lấy xe trả trống</option>
-            {allOptions.map((option, index) => (
-              <option key={index} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Form.Select>
-        </Form.Group>
-      </div>
-    );
-  }, [taskPathElements, selectedElements, handleElementChange]);
-
-  // Render check button (cho Demand)
-  const renderCheckButton = useCallback(() => {
-    if (!isSetupComplete) return null;
-    console.log('🔍 Debug - renderCheckButton called');
-    
-    // Format display labels cho button text
-    const displayLabels = Object.values(selectedElements).map(value => formatOptionLabel(value));
-    
-    return (
-      <div className="mb-3">
-        <Button
-          variant="success"
-          onClick={checkSetupAvailability}
-          disabled={isChecking}
-          className="w-100"
-        >
-          {isChecking ? (
-            <>
-              <Spinner animation="border" size="sm" className="me-2" />
-              Đang gửi lệnh...
-            </>
-          ) : (
-            `Gửi lệnh đến lấy xe trả trống: ${displayLabels.join(', ')}`
-          )}
-        </Button>
-      </div>
-    );
-  }, [isSetupComplete, isChecking, selectedElements, checkSetupAvailability]);
 
   // Render success modal
   const renderSuccessModal = useCallback(() => (
@@ -629,7 +439,7 @@ const MobileGridDisplay = () => {
         >
           Đóng
         </Button>
-        {selectedKhu === 'Supply' && !sendResult?.message && (
+        {(selectedKhu === 'Supply' || selectedKhu === 'Demand') && !sendResult?.message && (
           <Button
             variant="primary"
             onClick={handleSendSignalGrid}
@@ -639,19 +449,9 @@ const MobileGridDisplay = () => {
             {isSending ? 'Đang gửi...' : 'Gửi tín hiệu'}
           </Button>
         )}
-        {selectedKhu === 'Demand' && !sendResult?.message && (
-          <Button
-            variant="primary"
-            onClick={checkSetupAvailability}
-            disabled={isChecking}
-            className="w-100 mt-2"
-          >
-            {isChecking ? 'Đang gửi...' : 'Gửi lệnh'}
-          </Button>
-        )}
       </Modal.Footer>
     </Modal>
-  ), [showSuccessModal, successMessage, selectedElements, selectedKhu, selectedCell, sendResult, isSending, isChecking, checkSetupAvailability, handleSendSignalGrid]);
+  ), [showSuccessModal, successMessage, selectedKhu, selectedCell, sendResult, isSending, handleSendSignalGrid]);
 
   return (
     <div className="w-100">
@@ -678,55 +478,48 @@ const MobileGridDisplay = () => {
             </div>
           )}
 
-          {/* Khu Selection */}
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Chọn Khu Vực:</strong></Form.Label>
-            <Form.Select
-              value={selectedKhu}
-              onChange={(e) => setSelectedKhu(e.target.value)}
-              disabled={isLoading}
-            >
-              <option value="">-- Chọn khu vực --</option>
+          {/* Khu Selection as Grid */}
+          <Form.Label><strong>Chọn Khu Vực:</strong></Form.Label>
+          <div className="m">
+            <div className="row">
               {Object.entries(dynamicKhuConfig).map(([key, config]) => (
-                <option key={key} value={key}>
-                  {config.label}
-                </option>
+                <div className="col-6 col-sm-5" key={key}>
+                  <div
+                    className={`text-white grid-task ${selectedKhu === key ? 'bg-primary' : ''}`}
+                    onClick={() => setSelectedKhu(key)}
+                    style={{
+                      backgroundColor: selectedKhu === key ? '#007bff' : '#14a65f',
+                      height: '60px',
+                      marginLeft: '20px',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      borderRadius: '6px',
+                      fontWeight: 'bold',
+                      fontSize: '1.3rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <div>{config.label}</div>
+                  </div>
+                </div>
               ))}
-            </Form.Select>
-          </Form.Group>
+            </div>
+          </div>
 
-          {/* Hiển thị dropdown chỉ cho Demand */}
-          {selectedKhu === 'Demand' && renderTaskPathElements()}
-
-          {/* Hiển thị grid cho Supply */}
-          {selectedKhu === 'Supply' && (
+          {/* Hiển thị grid cho cả Supply và Demand */}
+          {(selectedKhu === 'Supply' || selectedKhu === 'Demand') && (
             <div className="bg-light p-3 rounded">
               <div className="row">{renderGrid()}</div>
             </div>
           )}
 
-          {/* Debug Info */}
-          {/* {isSetupComplete && selectedKhu === 'Demand' && (
-            <Alert variant="info" className="mb-3">
-              <strong>Setup hoàn thành:</strong> {Object.values(selectedElements).join(', ')}
-            </Alert>
-          )} */}
-
-          {/* Gửi lệnh Button (cho dropdown mode, chỉ hiển thị khi Demand) */}
-          {selectedKhu === 'Demand' && renderCheckButton()}
-
-          {/* Check Result (chỉ hiển thị lỗi) */}
-          {checkResult && !checkResult.success && (
-            <Alert variant="danger" className="mb-3">
-              {checkResult.message}
-            </Alert>
-          )}
 
           {/* Success Modal */}
           {renderSuccessModal()}
 
           {/* Context Menu cho Grid */}
-          {selectedKhu === 'Supply' && (
+          {(selectedKhu === 'Supply' || selectedKhu === 'Demand') && (
             <ContextMenu
               show={contextMenu.show}
               onHide={handleContextMenuHide}

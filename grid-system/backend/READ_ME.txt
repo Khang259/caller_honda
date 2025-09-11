@@ -41,7 +41,7 @@ uvicorn main:app --host IP --port PORT --reload --log-level debug
 |   redis.py        |       |                   |       |   (Pydantic)      |
 |   (DB Clients)    |       +-------------------+       +-------------------+
 +-------------------+               |
-          |                        v
+          |                         v
           |                +-------------------+       +-------------------+
           +--------------->|   MongoDB Server  |       |   Redis Server    |
                            +-------------------+       +-------------------+

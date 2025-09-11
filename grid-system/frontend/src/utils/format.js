@@ -1,24 +1,26 @@
-// Chứa các hàm định dạng
+// src/utils/format.js
 
 // Mapping cho AE3 và AE4 dropdown options
-const OPTION_LABEL_MAPPING = {
+const DEMAND_AE3_CELL_MAPPING = {
   // AE3 options
-  "10000050": "AE3_XT_1",
-  "10000048": "AE3_XT_2", 
-  "10000046": "AE3_XT_3",
-  "10000026": "AE3_XT_4",
-  "10000024": "AE3_XT_5",
-  "10000022": "AE3_XT_6",
-  "10000020": "AE3_XT_7",
-  "10000018": "AE3_XT_8",
-  "10000016": "AE3_XT_9",
-  
+  1: "AE3_XT_1",
+  2: "AE3_XT_2", 
+  3: "AE3_XT_3",
+  4: "AE3_XT_4",
+  5: "AE3_XT_5",
+  6: "AE3_XT_6",
+  7: "AE3_XT_7",
+  8: "AE3_XT_8",
+  9: "AE3_XT_9",
+};
+
+const DEMAND_AE4_CELL_MAPPING = {
   // AE4 options
-  "10000055": "AE4_XT_1",
-  "10000060": "AE4_XT_2",
-  "10000078": "AE4_XT_3", 
-  "10000080": "AE4_XT_4",
-  "10000082": "AE4_XT_5"
+  1: "AE4_XT_1",
+  2: "AE4_XT_2",
+  3: "AE4_XT_3", 
+  4: "AE4_XT_4",
+  5: "AE4_XT_5"
 };
 
 // Mapping cho Supply Grid Cell Labels - AE3 (cells 1-9)
@@ -48,44 +50,44 @@ const SUPPLY_AE4_CELL_MAPPING = {
   10: "DCC_4S2"    // 10000611
 };
 
-/**
- * Format option value thành label hiển thị trong dropdown
- * @param {string} optionValue - Giá trị option (ví dụ: "10000050")
- * @returns {string} - Label tương ứng (ví dụ: "AE3_XT_1") hoặc giá trị gốc nếu không tìm thấy
- */
-export const formatOptionLabel = (optionValue) => {
-  if (!optionValue) return '';
-  return OPTION_LABEL_MAPPING[optionValue] || optionValue;
-};
+// /**
+//  * Format option value thành label hiển thị trong dropdown
+//  * @param {string} optionValue - Giá trị option (ví dụ: "10000050")
+//  * @returns {string} - Label tương ứng (ví dụ: "AE3_XT_1") hoặc giá trị gốc nếu không tìm thấy
+//  */
+// export const formatOptionLabel = (optionValue) => {
+//   if (!optionValue) return '';
+//   return OPTION_LABEL_MAPPING[optionValue] || optionValue;
+// };
 
-/**
- * Kiểm tra xem option value có phải là AE3 hay không
- * @param {string} optionValue - Giá trị option
- * @returns {boolean}
- */
-export const isAE3Option = (optionValue) => {
-  return optionValue && OPTION_LABEL_MAPPING[optionValue]?.startsWith('AE3_');
-};
+// /**
+//  * Kiểm tra xem option value có phải là AE3 hay không
+//  * @param {string} optionValue - Giá trị option
+//  * @returns {boolean}
+//  */
+// export const isAE3Option = (optionValue) => {
+//   return optionValue && OPTION_LABEL_MAPPING[optionValue]?.startsWith('AE3_');
+// };
 
-/**
- * Kiểm tra xem option value có phải là AE4 hay không
- * @param {string} optionValue - Giá trị option
- * @returns {boolean}
- */
-export const isAE4Option = (optionValue) => {
-  return optionValue && OPTION_LABEL_MAPPING[optionValue]?.startsWith('AE4_');
-};
+// /**
+//  * Kiểm tra xem option value có phải là AE4 hay không
+//  * @param {string} optionValue - Giá trị option
+//  * @returns {boolean}
+//  */
+// export const isAE4Option = (optionValue) => {
+//   return optionValue && OPTION_LABEL_MAPPING[optionValue]?.startsWith('AE4_');
+// };
 
-/**
- * Lấy tất cả options theo loại (AE3 hoặc AE4)
- * @param {string} type - Loại option ('AE3' hoặc 'AE4')
- * @returns {Array} - Mảng các object {value, label}
- */
-export const getOptionsByType = (type) => {
-  return Object.entries(OPTION_LABEL_MAPPING)
-    .filter(([value, label]) => label.startsWith(`${type}_`))
-    .map(([value, label]) => ({ value, label }));
-};
+// /**
+//  * Lấy tất cả options theo loại (AE3 hoặc AE4)
+//  * @param {string} type - Loại option ('AE3' hoặc 'AE4')
+//  * @returns {Array} - Mảng các object {value, label}
+//  */
+// export const getOptionsByType = (type) => {
+//   return Object.entries(OPTION_LABEL_MAPPING)
+//     .filter(([value, label]) => label.startsWith(`${type}_`))
+//     .map(([value, label]) => ({ value, label }));
+// };
 
 /**
  * Format cell label cho Supply grid dựa trên user type
@@ -112,7 +114,23 @@ export const formatSupplyCellLabel = (cellNumber, currentKhu, isUserAE3, isUserA
   return formatCellLabel(cellNumber, currentKhu);
 };
 
-// src/utils/format.js
+
+export const formatDemandCellLabel = (cellNumber, currentKhu, isUserAE3, isUserAE4) => {
+  if (currentKhu !== 'Demand') {
+    return formatCellLabel(cellNumber, currentKhu); // Fallback to original function
+  }
+  
+  if (isUserAE3 && DEMAND_AE3_CELL_MAPPING[cellNumber]) {
+    return DEMAND_AE3_CELL_MAPPING[cellNumber];
+  }
+  
+  if (isUserAE4 && DEMAND_AE4_CELL_MAPPING[cellNumber]) {
+    return DEMAND_AE4_CELL_MAPPING[cellNumber];
+  }
+  // Fallback to original format nếu không match
+  return formatCellLabel(cellNumber, currentKhu);
+};
+
 export const formatCellLabel = (selectedCell, currentKhu) => {
   if (currentKhu === 'SupplyAndDemand') {
     return selectedCell <= 14 ? `MS_${selectedCell.toString().padStart(2, '0')}` :
