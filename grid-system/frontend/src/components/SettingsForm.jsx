@@ -16,7 +16,9 @@ const SettingsForm = () => {
     showAlert,
     alertMessage,
     setShowAlert,
-    handleConfigChange
+    handleConfigChange,
+    inputUsername,
+    setInputUsername
   } = useSettings();
 
   return (
@@ -47,6 +49,20 @@ const SettingsForm = () => {
               />
               <Form.Text className="text-muted">
                 Nhập nhiều địa chỉ server, cách nhau bởi dấu phẩy (VD: 127.0.0.1:8000, 192.168.1.116:8000)
+              </Form.Text>
+            </Form.Group>
+
+            <div className="settings-title">Cấu hình giao diện người dùng</div>
+            <Form.Group className="mb-4">
+              <Form.Control
+                type="text"
+                placeholder="Nhập tên người dùng (vd: admin, user1, user2)"
+                value={inputUsername}
+                onChange={(e) => setInputUsername(e.target.value)}
+                className="form-control-lg"
+              />
+              <Form.Text className="text-muted">
+                {/* Nhập nhiều tên người dùng, cách nhau bởi dấu phẩy (VD: admin, user1, user2) */}
               </Form.Text>
             </Form.Group>
 

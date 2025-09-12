@@ -23,6 +23,8 @@ class DataService:
             "demand_ae3": "task_path_demand_ae3",
             "supply_ae4": "task_path_supply_ae4",
             "demand_ae4": "task_path_demand_ae4",
+            "supply_main_ovh": "task_path_supply_main_ovh",
+            "demand_main_ovh": "task_path_demand_main_ovh",
         }
 
     def _resolve_collection_by_user(self, khu_lower: str, username: Optional[str]) -> Optional[str]:
@@ -32,6 +34,7 @@ class DataService:
         - Default: supply->task_path_supply, demand->task_path_demand, supplyanddemand->task_path_supply_demand
         - If username contains "ae3": use *_ae3 variant for supply/demand
         - If username contains "ae4": use *_ae4 variant for supply/demand
+        - If username contains "main_ovh": use *_main_ovh variant for supply/demand
         """
         if not username:
             return self.collections.get(khu_lower)
@@ -44,6 +47,9 @@ class DataService:
                     return self.collections.get(key, self.collections.get(khu_lower))
                 if "ae4" in username_lower:
                     key = f"{khu_lower}_ae4"
+                    return self.collections.get(key, self.collections.get(khu_lower))
+                if "main_ovh" in username_lower:
+                    key = f"{khu_lower}_main_ovh"
                     return self.collections.get(key, self.collections.get(khu_lower))
             return self.collections.get(khu_lower)
         except Exception:
@@ -82,7 +88,7 @@ class DataService:
                 cleaned_data = self.convert_objectid_to_str(data)
                 logger.info(f"✅ MongoDB Query: db.{collection}.find() -> {len(data)} records")
                 logger.info(f"📊 Collection: {collection} | Khu: {khu} | Username: {username} | Records: {len(data)}")
-                logger.info(f"data trong collection: {data}")
+                logger.info(f"data trong collection: {cleaned_data}")
                 return cleaned_data
             except Exception as e:
                 logger.error(f"❌ MongoDB query error for {collection}: {e}")
@@ -247,44 +253,70 @@ class DataService:
                         status_counts["Demand"] += 1
         return status_counts
 
-    def get_config(self) -> Dict[str, Any]:
-        """Get configuration from MongoDB"""
+    def get_config(self, username: Optional[str] = None) -> Dict[str, Any]:
+        """Get configuration from MongoDB for a specific user or default config"""
         try:
-            config_doc = self.mongo.find_one("config", {"type": "grid_config"})
-            if config_doc:
-                logger.info("✅ Lấy cấu hình từ MongoDB thành công")
-                return config_doc.get("data", {})
+            if username:
+                # Tìm cấu hình theo user_id
+                config_doc = self.mongo.find_one("config", {"username": username})
+                if config_doc:
+                    logger.info(f"✅ Lấy cấu hình cho user_id={username} từ MongoDB thành công")
+                    return config_doc.get("data", {})
+                else:
+                    logger.info(f"📋 Không tìm thấy cấu hình cho user_id={username}, trả về mặc định")
+                    return self.get_default_config()
             else:
-                logger.info("📋 Không có cấu hình trong MongoDB, trả về mặc định")
-                return self.get_default_config()
+                # Giữ logic cũ nếu không có user_id (tùy thuộc vào yêu cầu của bạn)
+                config_doc = self.mongo.find_one("config", {"type": "grid_config"})
+                if config_doc:
+                    logger.info("✅ Lấy cấu hình mặc định từ MongoDB thành công")
+                    return config_doc.get("data", {})
+                else:
+                    logger.info("📋 Không có cấu hình mặc định trong MongoDB, trả về mặc định")
+                    return self.get_default_config()
         except Exception as e:
             logger.error(f"❌ Lỗi khi lấy cấu hình: {e}")
             return self.get_default_config()
 
-    def save_config(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Save configuration to MongoDB"""
+    def save_config(self, config_data: Dict[str, Any], username: Optional[str] = None) -> Dict[str, Any]:
+        """Save configuration to MongoDB for a specific user or default"""
         try:
-            # Validate config data
+            logger.info(f"Debug: Nhận config_data={config_data}, username={username}")
             validated_config = self.validate_config(config_data)
             
-            # Save to MongoDB
             config_doc = {
-                "type": "grid_config",
                 "data": validated_config,
                 "timestamp": datetime.utcnow().isoformat(),
-                "version": "1.0"
+                "version": "1.0",
+                'type': 'grid_config'
             }
             
-            # Upsert config
-            self.mongo.get_collection("config").update_one(
-                {"type": "grid_config"},
-                {"$set": config_doc},
-                upsert=True
-            )
+            doc = self.mongo.find_one("config", {"type": "grid_config"})
+            if username:
+            # Kiểm tra xem username đã tồn tại trong collection config chưa
+                existing_doc = self.mongo.find_one("config", {"username": username})
+                if existing_doc:
+                    logger.info(f"Debug: Tìm thấy document cho username={username}, cập nhật document")
+                else:
+                    logger.info(f"Debug: User mới username={username}, tạo document mới")
+                
+                config_doc["username"] = username
+                self.mongo.get_collection("config").update_one(
+                    {"username": username},
+                    {"$set": config_doc},
+                    upsert=True
+                )
+                logger.info(f"✅ Cấu hình đã được lưu vào MongoDB cho user_id={username}")
+            else:
+                config_doc["type"] = "grid_config"
+                self.mongo.get_collection("config").update_one(
+                    {"type": "grid_config"},
+                    {"$set": config_doc},
+                    upsert=True
+                )
+                logger.info("✅ Cấu hình mặc định đã được lưu vào MongoDB")
             
-            logger.info("✅ Cấu hình đã được lưu vào MongoDB")
             return validated_config
-            
         except Exception as e:
             logger.error(f"❌ Lỗi khi lưu cấu hình: {e}")
             raise
@@ -293,6 +325,7 @@ class DataService:
         """Get default configuration"""
         return {
             "serverIPs": [],
+            "username": [],
             "SupplyAndDemandConfig": {
                 "rows": 4,
                 "columns": 6,
@@ -309,7 +342,6 @@ class DataService:
                 "cells": 24
             }
         }
-
     def validate_config(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
         """Validate configuration data"""
         default_config = self.get_default_config()
@@ -319,8 +351,10 @@ class DataService:
         for key, default_value in default_config.items():
             if key in config_data:
                 validated[key] = config_data[key]
+                logger.info(f"✅ {key} đã được lưu vào MongoDB")
             else:
                 validated[key] = default_value
+                logger.info(f"📋 Sử dụng giá trị mặc định cho {key}")
         
         # Validate grid configurations
         for khu in ["SupplyAndDemandConfig", "SupplyConfig", "DemandConfig"]:
@@ -333,6 +367,11 @@ class DataService:
                     # Ensure cells is a valid number
                     elif not isinstance(config["cells"], int) or config["cells"] < 1:
                         config["cells"] = max(1, config["rows"] * config["columns"])
+        
+        # Validate serverIPs
+        if "serverIPs" in validated and not isinstance(validated["serverIPs"], list):
+            logger.warning(f"📋 serverIPs không hợp lệ, sử dụng giá trị mặc định: []")
+            validated["serverIPs"] = default_config["serverIPs"]
         
         return validated
 

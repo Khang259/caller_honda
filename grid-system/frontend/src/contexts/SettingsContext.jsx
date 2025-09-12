@@ -5,19 +5,22 @@ import { fetchConfig, saveConfig } from '../services/config';
 
 const SettingsContext = createContext();
 
-const defaultSupplyAndDemandConfig = { rows: 5, columns: 5, cells: 22 };
-const defaultSupplyConfig = { rows: 5, columns: 5, cells: 26 };
-const defaultDemandConfig = { rows: 5, columns: 5, cells: 23 };
+const defaultSupplyAndDemandConfig = { rows: 1, columns: 1, cells: 1 };
+const defaultSupplyConfig = { rows: 1, columns: 1, cells: 1 };
+const defaultDemandConfig = { rows: 1, columns: 1, cells: 1 };
 
 const getInitialConfig = () => {
   const savedConfig = JSON.parse(localStorage.getItem('userConfig') || '{}');
   return {
     serverIPs: savedConfig.serverIPs && Array.isArray(savedConfig.serverIPs) && savedConfig.serverIPs.length > 0
       ? savedConfig.serverIPs.filter(ip => ip && typeof ip === 'string')
-      : ['192.168.1.7:8000'],
+      : ['127.0.0.1:8000'],
     SupplyAndDemandConfig: savedConfig.SupplyAndDemandConfig || defaultSupplyAndDemandConfig,
     SupplyConfig: savedConfig.SupplyConfig || defaultSupplyConfig,
-    DemandConfig: savedConfig.DemandConfig || defaultDemandConfig
+    DemandConfig: savedConfig.DemandConfig || defaultDemandConfig,
+    username: savedConfig.username && Array.isArray(savedConfig.username) && savedConfig.username.length > 0
+      ? savedConfig.username.filter(username => username && typeof username === 'string')
+      : ['admin']
   };
 };
 
@@ -25,6 +28,7 @@ export const SettingsProvider = ({ children }) => {
   const initialConfig = getInitialConfig();
   const [serverIPs, setServerIPs] = useState(initialConfig.serverIPs);
   const [inputServerIP, setInputServerIP] = useState(serverIPs.join(', '));
+  const [inputUsername, setInputUsername] = useState(serverIPs.join(', '));
   const [SupplyAndDemandConfig, setSupplyAndDemandConfig] = useState(initialConfig.SupplyAndDemandConfig);
   const [SupplyConfig, setSupplyConfig] = useState(initialConfig.SupplyConfig);
   const [DemandConfig, setDemandConfig] = useState(initialConfig.DemandConfig);
@@ -44,34 +48,37 @@ export const SettingsProvider = ({ children }) => {
 
   const handleSaveConfig = async () => {
     const newServerIPs = inputServerIP.split(',').map(ip => ip.trim()).filter(ip => ip);
-    if (newServerIPs.length === 0) {
+    const newUsername = inputUsername.split(',').map(username => username.trim()).filter(username => username);
+    if (newServerIPs.length === 0 && newUsername.length === 0) {
       setShowAlert(true);
       setAlertMessage('Vui lòng nhập ít nhất một địa chỉ IP!');
+      setAlertMessage('Vui lòng nhập ít nhất một tên người dùng!');
       return;
     }
 
     try {
       const newConfig = {
         serverIPs: newServerIPs,
+        username: newUsername,
         SupplyAndDemandConfig,
         SupplyConfig,
         DemandConfig
       };
       
-      // Lưu vào localStorage
-      await saveUserConfig(newConfig);
-      setServerIPs(newServerIPs);
+      // // Lưu vào localStorage
+      // await saveUserConfig(newConfig);
+      // setServerIPs(newServerIPs);
       
       // Lưu vào MongoDB nếu có server IP
-      if (newServerIPs.length > 0) {
+      if (newServerIPs.length > 0 && newUsername.length > 0) {
         try {
-          await saveConfig(newServerIPs[0], newConfig);
+          await saveConfig(newServerIPs[0], newConfig, newUsername[0]);
           setShowAlert(true);
           setAlertMessage('Đã lưu cấu hình thành công vào MongoDB!');
         } catch (mongoError) {
           console.warn('Không thể lưu vào MongoDB:', mongoError);
           setShowAlert(true);
-          setAlertMessage('Đã lưu cấu hình local, nhưng không thể lưu vào MongoDB!');
+          setAlertMessage(`Cảnh báo: Không thể lưu cấu hình vào MongoDB. Lỗi: ${mongoError.message}`);
         }
       } else {
         setShowAlert(true);
@@ -84,8 +91,9 @@ export const SettingsProvider = ({ children }) => {
   };
 
   const handleReset = () => {
-    setServerIPs(['192.168.1.7:8000']);
-    setInputServerIP('192.168.1.7:8000');
+    setServerIPs(['127.0.0.1:8000']);
+    setInputServerIP('127.0.0.1:8000');
+    setInputUsername('None');
     setSupplyAndDemandConfig(defaultSupplyAndDemandConfig);
     setSupplyConfig(defaultSupplyConfig);
     setDemandConfig(defaultDemandConfig);
@@ -116,6 +124,8 @@ export const SettingsProvider = ({ children }) => {
     serverIPs,
     inputServerIP,
     setInputServerIP,
+    inputUsername,
+    setInputUsername,
     SupplyAndDemandConfig,
     setSupplyAndDemandConfig,
     SupplyConfig,
@@ -131,6 +141,7 @@ export const SettingsProvider = ({ children }) => {
     alertMessage,
     setAlertMessage,
     handleConfigChange
+    
   };
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

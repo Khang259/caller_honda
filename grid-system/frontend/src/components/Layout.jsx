@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const Layout = ({ children }) => {
-    const { currentUser, logout, isAdmin, isUserAE3, isUserAE4 } = useAuth();
+    const { currentUser, logout, isAdmin, isUserAE3, isUserAE4, isUserMainOvh } = useAuth();
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -57,8 +57,9 @@ const Layout = ({ children }) => {
                                     <Navbar.Text className="me-3">
                                         Đăng nhập với: <span className="text-white fw-bold">{currentUser.username}</span>
                                         {isAdmin() && <span className="badge bg-danger ms-2">Admin</span>}
-                                        {isUserAE3() && <span className="badge bg-primary ms-2">AE_3</span>}
+                                        {isUserAE3() && <span className="badge bg-success ms-2">AE_3</span>}
                                         {isUserAE4() && <span className="badge bg-success ms-2">AE_4</span>}
+                                        {isUserMainOvh() && <span className="badge bg-success ms-2">Main_OVH</span>}
                                     </Navbar.Text>
                                     <Button variant="outline-light" onClick={handleLogout}>Đăng xuất</Button>
                                 </>

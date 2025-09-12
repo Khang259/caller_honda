@@ -9,12 +9,9 @@ from services.data_service import DataService
 from services.websocket import WebSocketManager
 from services.scheduler import SchedulerService
 from services.counter_service import CounterService
-from pydantic import BaseModel
+from api.models import ConfigRequest, TaskData
 from typing import List, Optional, Dict, Any
-import uvicorn
 import asyncio
-import os
-import json
 from uvicorn import Config, Server
 import sys
 
@@ -23,16 +20,16 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ===== ĐỊNH NGHĨA MODELS TRƯỚC =====
-class TaskOrderDetail(BaseModel):
-    taskPath: str
+# class TaskOrderDetail(BaseModel):
+#     taskPath: str
 
-class TaskData(BaseModel):
-    fromSystem: Optional[str] = None
-    modelProcessCode: Optional[str] = None
-    orderId: Optional[str] = None
-    taskOrderDetail: Optional[List[TaskOrderDetail]] = None
-    cell: Optional[str] = None
-    area: Optional[str] = None
+# class TaskData(BaseModel):
+#     fromSystem: Optional[str] = None
+#     modelProcessCode: Optional[str] = None
+#     orderId: Optional[str] = None
+#     taskOrderDetail: Optional[List[TaskOrderDetail]] = None
+#     cell: Optional[str] = None
+#     area: Optional[str] = None
 
 # Config đã được load từ config.py
 
@@ -220,25 +217,29 @@ async def submit_task(data: TaskData):
         return {"status": "error", "message": f"Server error: {str(e)}"}
 
 # ===== CONFIG ENDPOINTS (từ routes.py) =====
-@app.get("/config")
-async def get_config():
+@app.get(f"/config")
+async def get_config(username: Optional[str] = Query(None)):
     """Get application configuration from MongoDB"""
     try:
-        config_data = data_service.get_config()
+        config_data = data_service.get_config(username)
         return {"status": "success", "data": config_data}
     except Exception as e:
-        logger.error(f"Error getting config: {e}")
+        logger.error(f"Error getting config for user_id={username}: {e}")
         return {"status": "error", "message": str(e)}
 
 @app.post("/config")
-async def save_config(config_data: dict):
+async def save_config(request: ConfigRequest):
     """Save configuration to MongoDB"""
     try:
-        result = data_service.save_config(config_data)
-        return {"status": "success", "data": result, "message": "Cấu hình đã được lưu thành công"}
+        result = data_service.save_config(request.configData)
+        return {
+            "status": "success",
+            "data": result,
+            "message": f"Cấu hình đã được lưu thành công (mặc định)"
+        }
     except Exception as e:
-        logger.error(f"Error saving config: {e}")
-        return {"status": "error", "message": str(e)}
+        logger.error(f"Error saving config : {e}")
+        return {"status": "error", "message": str(e)}   
 
 # ===== GRID ENDPOINTS (từ routes.py) - QUAN TRỌNG! =====
 @app.get("/api/grid/options/{khu}")

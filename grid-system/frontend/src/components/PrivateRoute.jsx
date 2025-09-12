@@ -81,3 +81,24 @@ export const UserAE4Route = ({ children }) => {
 
     return children;
 };
+
+export const UserMainOVHRoute = ({ children }) => {
+    const auth = useAuth();
+
+    if (!auth) {
+        console.error("useAuth() returned undefined");
+        return <Navigate to="/login" />;
+    }
+
+    const { currentUser, isUserMainOvh } = auth;
+
+    if (!currentUser) {
+        return <Navigate to="/login" />;
+    }
+
+    if (!isUserMainOvh()) {
+        return <Navigate to="/" />;
+    }
+
+    return children;
+};

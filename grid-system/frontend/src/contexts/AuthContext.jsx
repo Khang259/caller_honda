@@ -29,7 +29,8 @@ export const AuthProvider = ({ children }) => {
         { username: 'user_AE', password: 'userae', role: 'user' },
         { username: 'user_DCC', password: 'userdcc', role: 'user' },
         { username: 'user_ae3', password: 'userae3', role: 'user_ae3' },
-        { username: 'user_ae4', password: 'userae4', role: 'user_ae4' }
+        { username: 'user_ae4', password: 'userae4', role: 'user_ae4' },
+        { username: 'user_main_ovh', password: 'usermainovh', role: 'user_main_ovh' }
     ];
 
     // Đăng nhập
@@ -63,6 +64,10 @@ export const AuthProvider = ({ children }) => {
         return currentUser && currentUser.role === 'user_ae4';
     };
 
+    const isUserMainOvh = () => {
+        return currentUser && currentUser.role === 'user_main_ovh';
+    };
+
     const value = {
         currentUser,
         login,
@@ -70,6 +75,7 @@ export const AuthProvider = ({ children }) => {
         isAdmin,
         isUserAE3,
         isUserAE4,
+        isUserMainOvh,
         loading
     };
 

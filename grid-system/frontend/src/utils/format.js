@@ -1,5 +1,11 @@
 // src/utils/format.js
 
+
+const SUPPLY_DEMAND_MAIN_OVH_CELL_MAPPING = {
+  1: "DCC_MAIN3",
+  2: "DCC_OVH3",
+};
+
 // Mapping cho AE3 và AE4 dropdown options
 const DEMAND_AE3_CELL_MAPPING = {
   // AE3 options
@@ -50,45 +56,6 @@ const SUPPLY_AE4_CELL_MAPPING = {
   10: "DCC_4S2"    // 10000611
 };
 
-// /**
-//  * Format option value thành label hiển thị trong dropdown
-//  * @param {string} optionValue - Giá trị option (ví dụ: "10000050")
-//  * @returns {string} - Label tương ứng (ví dụ: "AE3_XT_1") hoặc giá trị gốc nếu không tìm thấy
-//  */
-// export const formatOptionLabel = (optionValue) => {
-//   if (!optionValue) return '';
-//   return OPTION_LABEL_MAPPING[optionValue] || optionValue;
-// };
-
-// /**
-//  * Kiểm tra xem option value có phải là AE3 hay không
-//  * @param {string} optionValue - Giá trị option
-//  * @returns {boolean}
-//  */
-// export const isAE3Option = (optionValue) => {
-//   return optionValue && OPTION_LABEL_MAPPING[optionValue]?.startsWith('AE3_');
-// };
-
-// /**
-//  * Kiểm tra xem option value có phải là AE4 hay không
-//  * @param {string} optionValue - Giá trị option
-//  * @returns {boolean}
-//  */
-// export const isAE4Option = (optionValue) => {
-//   return optionValue && OPTION_LABEL_MAPPING[optionValue]?.startsWith('AE4_');
-// };
-
-// /**
-//  * Lấy tất cả options theo loại (AE3 hoặc AE4)
-//  * @param {string} type - Loại option ('AE3' hoặc 'AE4')
-//  * @returns {Array} - Mảng các object {value, label}
-//  */
-// export const getOptionsByType = (type) => {
-//   return Object.entries(OPTION_LABEL_MAPPING)
-//     .filter(([value, label]) => label.startsWith(`${type}_`))
-//     .map(([value, label]) => ({ value, label }));
-// };
-
 /**
  * Format cell label cho Supply grid dựa trên user type
  * @param {number} cellNumber - Số cell (1-9 cho AE3, 1-10 cho AE4)
@@ -97,7 +64,7 @@ const SUPPLY_AE4_CELL_MAPPING = {
  * @param {boolean} isUserAE4 - Có phải user AE4 không
  * @returns {string} - Label cho cell
  */
-export const formatSupplyCellLabel = (cellNumber, currentKhu, isUserAE3, isUserAE4) => {
+export const formatSupplyCellLabel = (cellNumber, currentKhu, isUserAE3, isUserAE4, isUserMainOvh) => {
   if (currentKhu !== 'Supply') {
     return formatCellLabel(cellNumber, currentKhu); // Fallback to original function
   }
@@ -109,13 +76,16 @@ export const formatSupplyCellLabel = (cellNumber, currentKhu, isUserAE3, isUserA
   if (isUserAE4 && SUPPLY_AE4_CELL_MAPPING[cellNumber]) {
     return SUPPLY_AE4_CELL_MAPPING[cellNumber];
   }
-  
+
+  if (isUserMainOvh && SUPPLY_DEMAND_MAIN_OVH_CELL_MAPPING[cellNumber]) {
+    return SUPPLY_DEMAND_MAIN_OVH_CELL_MAPPING[cellNumber];
+  }
   // Fallback to original format nếu không match
   return formatCellLabel(cellNumber, currentKhu);
 };
 
 
-export const formatDemandCellLabel = (cellNumber, currentKhu, isUserAE3, isUserAE4) => {
+export const formatDemandCellLabel = (cellNumber, currentKhu, isUserAE3, isUserAE4, isUserMainOvh) => {
   if (currentKhu !== 'Demand') {
     return formatCellLabel(cellNumber, currentKhu); // Fallback to original function
   }
@@ -127,9 +97,14 @@ export const formatDemandCellLabel = (cellNumber, currentKhu, isUserAE3, isUserA
   if (isUserAE4 && DEMAND_AE4_CELL_MAPPING[cellNumber]) {
     return DEMAND_AE4_CELL_MAPPING[cellNumber];
   }
+
+  if (isUserMainOvh && SUPPLY_DEMAND_MAIN_OVH_CELL_MAPPING[cellNumber]) {
+    return SUPPLY_DEMAND_MAIN_OVH_CELL_MAPPING[cellNumber];
+  }
   // Fallback to original format nếu không match
   return formatCellLabel(cellNumber, currentKhu);
 };
+
 
 export const formatCellLabel = (selectedCell, currentKhu) => {
   if (currentKhu === 'SupplyAndDemand') {

@@ -29,7 +29,7 @@ const KHU_CONFIG = {
 
 const MobileGridDisplay = () => {
   // Context hooks
-  const { currentUser, isAdmin, isUserAE3, isUserAE4 } = useAuth();
+  const { currentUser, isAdmin, isUserAE3, isUserAE4, isUserMainOvh } = useAuth();
   const { serverIPs } = useSettings();
   const { addTask, addHistory } = useTasks();
   const { addHistory: addHistoryRecord } = useHistory();
@@ -81,7 +81,7 @@ const MobileGridDisplay = () => {
 
   // Derived values
   const effectiveServerIP = serverIPs && serverIPs.length > 0 ? serverIPs[0] : null;
-  const effectiveServerIPICS = serverIPs && serverIPs.length > 1 ? serverIPs[1] : null;
+  const effectiveServerIPICS = serverIPs && serverIPs.length > 1 ? serverIPs[1] : null; // Giữ var này để dùng sau
   const currentKhuConfig = selectedKhu ? dynamicKhuConfig[selectedKhu] : null;
 
   // Load grid configuration
@@ -114,35 +114,9 @@ const MobileGridDisplay = () => {
     }
     setIsLoading(true);
     try {
-      // const apiUrl = `http://192.168.1.7:1838/api/grid/options/${selectedKhu}?username=${currentUser.username}`;
       const apiUrl = `http://192.168.1.7:1838/api/grid/options/${selectedKhu}?username=${currentUser.username}`;
-      console.log('🔗 API URL:', apiUrl);
       const response = await fetch(apiUrl);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const optionsData = await response.json();
-      console.log('Dữ liệu optionsData là:',optionsData)
-      if (optionsData.data && optionsData.data.steps) {
-        const elements = Object.entries(optionsData.data.steps).map(([stepKey, stepData], index) => ({
-          id: index + 1,
-          value: '',
-          label: stepData.label || `Bước ${index + 1}`,
-          options: stepData.options || []
-        }));
-        setTaskPathElements(elements);
-        setSelectedElements({});
-        console.log('✅ Đã tải taskPathElements:', elements);
-      } else {
-        throw new Error('Dữ liệu options không hợp lệ');
-      }
-    } catch (error) {
-      console.error('❌ Lỗi khi tải task path elements:', error);
-      const elements = Array.from({ length: currentKhuConfig.maxElements }, (_, index) => ({
-        id: index + 1,
-        value: '',
-        label: `Bước ${index + 1}`,
-        options: []
-      }));
-      setTaskPathElements(elements);
     } finally {
       setIsLoading(false);
     }
@@ -160,12 +134,12 @@ const MobileGridDisplay = () => {
       const response = await fetch(apiUrl);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      if (data.status === 'success' && Array.isArray(data.data)) {
+      // if (data.status === 'success' && Array.isArray(data.data)) {
+      if (Array.isArray(data.data)) {
         if (JSON.stringify(data.data) !== JSON.stringify(taskData)) {
           setTaskData(data.data);
           console.log(`✅ Dữ liệu từ MongoDB (${selectedKhu}):`, data.data);
         } else {
-          console.log('🔍 Debug - taskData không thay đổi, bỏ qua setTaskData');
         }
         isTaskDataLoaded.current = true;
       } else {
@@ -186,9 +160,9 @@ const MobileGridDisplay = () => {
       isTaskDataLoaded.current = false;
       isGridConfigLoaded.current = false;
       loadTaskPathElements();
-      if (selectedKhu === 'Supply') {
-        loadGridConfig();
-      }
+      // if (selectedKhu === 'Supply') {
+      //   loadGridConfig();
+      // }
       loadTaskData(); // Load task data cho cả Supply và Demand
     }
   }, [selectedKhu, currentKhuConfig, loadTaskPathElements, loadGridConfig, loadTaskData]);
@@ -228,17 +202,6 @@ const MobileGridDisplay = () => {
     setShowSuccessModal(true);
   }, [selectedKhu]);
 
-  // Handle right-click cho context menu
-  const handleCellRightClick = useCallback((e, cellNumber) => {
-    e.preventDefault();
-    const cellData = taskData.find(item => item.cell === `cell-${cellNumber}`);
-    setContextMenu({
-      show: true,
-      cellData: cellData,
-      position: { x: e.clientX, y: e.clientY }
-    });
-  }, [taskData]);
-
   // Handle context menu hide
   const handleContextMenuHide = useCallback(() => {
     setContextMenu(prev => ({ ...prev, show: false }));
@@ -248,13 +211,13 @@ const MobileGridDisplay = () => {
   // Send task signal cho grid (cho cả Supply và Demand)
   const handleSendSignalGrid = useCallback(async () => {
     if (isSending) {
-      console.log('🔍 Debug - Bỏ qua handleSendSignalGrid: đang gửi');
+      console.log('Debug - Bỏ qua handleSendSignalGrid: đang gửi');
       return;
     }
     setIsSending(true);
     setSendResult(null);
     try {
-      console.log('🔍 Debug - Bắt đầu handleSendSignalGrid cho khu:', selectedKhu);
+      console.log('Debug - Bắt đầu handleSendSignalGrid cho khu:', selectedKhu);
       const selectedData = taskData.find(item => item.cell === `cell-${selectedCell}`);
       if (!selectedData) {
         if (taskData.length === 0) {
@@ -273,26 +236,13 @@ const MobileGridDisplay = () => {
       } else if (selectedKhu === 'Demand') {
         // Cho Demand, lấy taskPath từ selectedData hoặc tạo từ taskPathElements
         taskPath = selectedData.value?.taskOrderDetail?.[0]?.taskPath || '';
-        if (!taskPath && taskPathElements.length > 0) {
-          // Fallback: tạo taskPath từ taskPathElements
-          const firstOptions = taskPathElements.map(element => 
-            element.options && element.options.length > 0 ? element.options[0] : ''
-          ).filter(option => option.trim() !== '');
-          taskPath = firstOptions.join(',');
-        }
         if (!taskPath) {
           throw new Error(`Không tìm thấy taskPath cho ô ${selectedCell}`);
         }
-        // Thêm suffix theo user type
-        if (isUserAE3()) {
-          taskPath += ',10000671';
-        } else if (isUserAE4()) {
-          taskPath += ',10000670';
-        }
-      }
-      
+      }  
+
       const payload = {
-        modelProcessCode: selectedKhu === 'Supply' ? "capxeAE34" : "capxeAE3",
+        modelProcessCode: selectedKhu === 'Supply' ? "capxeAE3" : "capxeAE3",
         fromSystem: "thadosoft",
         cell: selectedCell,
         khu: selectedKhu,
@@ -338,16 +288,23 @@ const MobileGridDisplay = () => {
     }
   }, [isSending, taskData, selectedCell, currentKhuConfig, serverIPs, addTask, addHistoryRecord, selectedKhu, taskPathElements, isUserAE3, isUserAE4]);
 
-
   // Render grid cell
   const renderGridCell = useCallback((cellNumber) => {
     const cellState = cellStates[cellNumber] || '#14a65f';
     const cellData = taskData.find(item => item.cell === `cell-${cellNumber}`);
-    const cellLabel = selectedKhu === 'Supply' 
-      ? formatSupplyCellLabel(cellNumber, selectedKhu, isUserAE3(), isUserAE4())
-      : selectedKhu === 'Demand'
-      ? formatDemandCellLabel(cellNumber, selectedKhu, isUserAE3(), isUserAE4())
-      : `Ô ${cellNumber}`;
+
+    // Thêm logic màu đỏ cho Demand với isUserMainOvh
+    let backgroundColor = cellState;
+    if (selectedKhu === 'Demand' && isUserMainOvh() && !cellState.startsWith('bg-')) {
+      backgroundColor = '#dc3545'; // Màu đỏ Bootstrap
+    }
+
+    let cellLabel;
+    if (selectedKhu === 'Supply') {
+      cellLabel = formatSupplyCellLabel(cellNumber, selectedKhu, isUserAE3(), isUserAE4(), isUserMainOvh());
+    } else if (selectedKhu === 'Demand') {
+      cellLabel = formatDemandCellLabel(cellNumber, selectedKhu, isUserAE3(), isUserAE4(), isUserMainOvh());
+    }
 
     return (
       <div className="col-4 col-sm-3" key={cellNumber}>
@@ -355,9 +312,9 @@ const MobileGridDisplay = () => {
           id={`cell-${cellNumber}`}
           className="text-white grid-cell"
           onClick={() => handleCellClick(cellNumber)}
-          onContextMenu={(e) => handleCellRightClick(e, cellNumber)}
+          // onContextMenu={(e) => handleCellRightClick(e, cellNumber)}
           style={{
-            backgroundColor: cellState.startsWith('bg-') ? undefined : cellState,
+            backgroundColor: cellState.startsWith('bg-') ? undefined : backgroundColor,
             height: '60px',
             margin: '5px',
             display: 'flex',
@@ -374,11 +331,10 @@ const MobileGridDisplay = () => {
         </div>
       </div>
     );
-  }, [cellStates, taskData, handleCellClick, handleCellRightClick, selectedKhu, isUserAE3, isUserAE4]);
+  }, [cellStates, taskData, handleCellClick, selectedKhu, isUserAE3, isUserAE4, isUserMainOvh]);
 
   // Render grid cho Supply và Demand
   const renderGrid = useCallback(() => {
-    console.log('🔍 Debug - renderGrid called for khu:', selectedKhu);
     if (isLoading) return <div className="text-center">Đang tải dữ liệu ...</div>;
     if (!taskData || taskData.length === 0) {
       return (
@@ -391,7 +347,6 @@ const MobileGridDisplay = () => {
       );
     }
     const totalCells = getTotalCells();
-    console.log('🔍 Debug - totalCells:', totalCells);
     return Array.from({ length: totalCells }, (_, index) => renderGridCell(index + 1));
   }, [isLoading, taskData, currentKhuConfig, selectedKhu, renderGridCell]);
 
@@ -406,11 +361,11 @@ const MobileGridDisplay = () => {
       <Modal.Header closeButton className="bg-success text-white">
         <Modal.Title>
           <i className="bi bi-check-circle me-2"></i>
-          {selectedKhu === 'Supply' ? `Xác nhận - Ô số ${selectedCell}` : 'Thành công!'}
+          {selectedKhu === 'Supply' || selectedKhu === 'Demand' ? `Xác nhận - Ô số ${selectedCell}` : 'Thành công!'}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body className="text-center">
-        {selectedKhu === 'Supply' ? (
+        {selectedKhu === 'Supply' || selectedKhu === 'Demand' ? (
           <>
             <p>Bạn có chắc chắn muốn gửi tín hiệu từ ô số {selectedCell} không?</p>
             {sendResult && (
@@ -452,6 +407,17 @@ const MobileGridDisplay = () => {
       </Modal.Footer>
     </Modal>
   ), [showSuccessModal, successMessage, selectedKhu, selectedCell, sendResult, isSending, handleSendSignalGrid]);
+
+  // Vùng này là phần trả về (return) của component MobileGridDisplay.
+  // Nó chịu trách nhiệm hiển thị giao diện chính cho người dùng trên thiết bị di động.
+  // Cụ thể:
+  // - Hiển thị thông tin server hiện tại và số lượng ô có dữ liệu nếu đang ở khu Supply.
+  // - Hiển thị thông tin người dùng đang đăng nhập, kèm badge Admin nếu là admin.
+  // - Cho phép chọn khu vực (Supply, Demand, v.v.) bằng giao diện dạng lưới, mỗi khu là một ô bấm.
+  // - Nếu chọn Supply hoặc Demand thì hiển thị lưới các ô (grid) tương ứng để thao tác.
+  // - Hiển thị modal thông báo thành công khi thao tác thành công.
+  // - Hiển thị context menu khi người dùng thao tác chuột phải hoặc giữ lâu trên một ô trong grid.
+  // Tóm lại, vùng này là UI chính cho việc chọn khu vực, thao tác với grid và xử lý các tương tác liên quan.
 
   return (
     <div className="w-100">
@@ -513,8 +479,7 @@ const MobileGridDisplay = () => {
               <div className="row">{renderGrid()}</div>
             </div>
           )}
-
-
+          
           {/* Success Modal */}
           {renderSuccessModal()}
 
