@@ -278,22 +278,29 @@ class DataService:
             logger.error(f"❌ Lỗi khi lấy cấu hình: {e}")
             return self.get_default_config()
 
-    def save_config(self, config_data: Dict[str, Any], username: Optional[str] = None) -> Dict[str, Any]:
+    def save_config(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
         """Save configuration to MongoDB for a specific user or default"""
         try:
-            logger.info(f"Debug: Nhận config_data={config_data}, username={username}")
+            logger.info(f"Debug: Nhận config_data={config_data}")
             validated_config = self.validate_config(config_data)
             
             config_doc = {
                 "data": validated_config,
                 "timestamp": datetime.utcnow().isoformat(),
-                "version": "1.0",
-                'type': 'grid_config'
+                "version": "1.0"
             }
             
-            doc = self.mongo.find_one("config", {"type": "grid_config"})
+            # Kiểm tra username trong config_data
+            username = None
+            if "username" in config_data:
+                # Xử lý cả trường hợp username là chuỗi hoặc mảng
+                if isinstance(config_data["username"], list) and config_data["username"]:
+                    username = config_data["username"][0]  # Lấy phần tử đầu tiên nếu là mảng
+                elif isinstance(config_data["username"], str) and config_data["username"]:
+                    username = config_data["username"]
+            
             if username:
-            # Kiểm tra xem username đã tồn tại trong collection config chưa
+                # Kiểm tra xem username đã tồn tại trong collection config chưa
                 existing_doc = self.mongo.find_one("config", {"username": username})
                 if existing_doc:
                     logger.info(f"Debug: Tìm thấy document cho username={username}, cập nhật document")
@@ -321,27 +328,6 @@ class DataService:
             logger.error(f"❌ Lỗi khi lưu cấu hình: {e}")
             raise
 
-    def get_default_config(self) -> Dict[str, Any]:
-        """Get default configuration"""
-        return {
-            "serverIPs": [],
-            "username": [],
-            "SupplyAndDemandConfig": {
-                "rows": 4,
-                "columns": 6,
-                "cells": 22
-            },
-            "SupplyConfig": {
-                "rows": 5,
-                "columns": 6,
-                "cells": 30
-            },
-            "DemandConfig": {
-                "rows": 4,
-                "columns": 6,
-                "cells": 24
-            }
-        }
     def validate_config(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
         """Validate configuration data"""
         default_config = self.get_default_config()
@@ -373,7 +359,39 @@ class DataService:
             logger.warning(f"📋 serverIPs không hợp lệ, sử dụng giá trị mặc định: []")
             validated["serverIPs"] = default_config["serverIPs"]
         
+        # Validate username
+        if "username" in validated:
+            if isinstance(validated["username"], list) and validated["username"]:
+                validated["username"] = validated["username"]  # Giữ nguyên mảng
+            elif isinstance(validated["username"], str) and validated["username"]:
+                validated["username"] = validated["username"]  # Giữ nguyên chuỗi
+            else:
+                logger.warning(f"📋 username không hợp lệ, sử dụng giá trị mặc định: []")
+                validated["username"] = default_config["username"]
+        
         return validated
+    
+    def get_default_config(self) -> Dict[str, Any]:
+        """Get default configuration"""
+        return {
+            "serverIPs": [],
+            "username": [],
+            "SupplyAndDemandConfig": {
+                "rows": 4,
+                "columns": 6,
+                "cells": 22
+            },
+            "SupplyConfig": {
+                "rows": 5,
+                "columns": 6,
+                "cells": 30
+            },
+            "DemandConfig": {
+                "rows": 4,
+                "columns": 6,
+                "cells": 24
+            }
+        }
 
     def update_cell_data(self, khu: str, cell_data: Dict[str, Any]) -> Dict[str, Any]:
         """Update dữ liệu cell trong MongoDB: nếu chưa có document thì tạo mới với đầy đủ các trường cell, value"""

@@ -9,7 +9,7 @@ from services.data_service import DataService
 from services.websocket import WebSocketManager
 from services.scheduler import SchedulerService
 from services.counter_service import CounterService
-from api.models import ConfigRequest, TaskData
+from api.models import ConfigRequest, TaskData, LoginRequest
 from typing import List, Optional, Dict, Any
 import asyncio
 from uvicorn import Config, Server
@@ -221,6 +221,7 @@ async def submit_task(data: TaskData):
 async def get_config(username: Optional[str] = Query(None)):
     """Get application configuration from MongoDB"""
     try:
+        logger.info(f"Debug: Nhận username={username}")
         config_data = data_service.get_config(username)
         return {"status": "success", "data": config_data}
     except Exception as e:
@@ -239,7 +240,31 @@ async def save_config(request: ConfigRequest):
         }
     except Exception as e:
         logger.error(f"Error saving config : {e}")
-        return {"status": "error", "message": str(e)}   
+        return {"status": "error", "message": str(e)} 
+
+@app.post("/login")
+async def login(request: LoginRequest):
+    try:
+        logger.info(f"Debug: Nhận yêu cầu đăng nhập cho username={request.username}")
+        user = data_service.mongo.find_one("users", {
+            "username": request.username,
+            "password": request.password  # Lưu ý: Nên mã hóa password trong thực tế
+        })
+        if user:
+            logger.info(f"✅ Đăng nhập thành công cho username={request.username}")
+            return {
+                "status": "success",
+                "data": {
+                    "username": user["username"],
+                    "role": user["role"]
+                }
+            }
+        else:
+            logger.warning(f"❌ Đăng nhập thất bại cho username={request.username}")
+            raise HTTPException(status_code=401, detail="Tên đăng nhập hoặc mật khẩu không đúng")
+    except Exception as e:
+        logger.error(f"❌ Lỗi khi đăng nhập: {e}")
+        raise HTTPException(status_code=500, detail=str(e))  
 
 # ===== GRID ENDPOINTS (từ routes.py) - QUAN TRỌNG! =====
 @app.get("/api/grid/options/{khu}")

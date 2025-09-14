@@ -65,9 +65,9 @@ export const SettingsProvider = ({ children }) => {
         DemandConfig
       };
       
-      // // Lưu vào localStorage
-      // await saveUserConfig(newConfig);
-      // setServerIPs(newServerIPs);
+      // Lưu vào localStorage
+      await saveUserConfig(newConfig);
+      setServerIPs(newServerIPs);
       
       // Lưu vào MongoDB nếu có server IP
       if (newServerIPs.length > 0 && newUsername.length > 0) {

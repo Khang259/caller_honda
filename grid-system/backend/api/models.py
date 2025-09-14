@@ -10,6 +10,7 @@ from datetime import datetime
 
 class TaskOrderDetail(BaseModel):
     taskPath: str
+
 class TaskData(BaseModel):
     fromSystem: Optional[str] = None
     modelProcessCode: Optional[str] = None
@@ -17,8 +18,13 @@ class TaskData(BaseModel):
     taskOrderDetail: Optional[List[TaskOrderDetail]] = None
     cell: Optional[str] = None
     area: Optional[str] = None
+    
 class ConfigRequest(BaseModel):
     configData: dict
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str    
 
 # class TaskOrderDetail(BaseModel):
 #     """Task order detail model"""
