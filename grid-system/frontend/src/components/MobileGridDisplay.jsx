@@ -1,3 +1,4 @@
+// src/components/MobileGridDisplay.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, Button, Form, Alert, Spinner, Modal, Dropdown } from 'react-bootstrap';
 import { useHistory } from '../contexts/HistoryContext';
@@ -24,16 +25,23 @@ const useGridConfig = (serverIPs, username) => {
   const [error, setError] = useState(null);
 
   const loadConfig = useCallback(async () => {
-    if (!serverIPs || serverIPs.length === 0 || !username) {
-      setError('Không có IP server hoặc username hợp lệ.');
+    if (!serverIPs || !Array.isArray(serverIPs) || serverIPs.length === 0) {
+      console.warn('Debug: serverIPs không hợp lệ:', serverIPs);
+      setError('Không có IP server hợp lệ.');
+      setIsConfigLoading(false);
+      return;
+    }
+    if (!username) {
+      console.warn('Debug: username không hợp lệ:', username);
+      setError('Không có username hợp lệ.');
       setIsConfigLoading(false);
       return;
     }
 
     setIsConfigLoading(true);
     try {
-      const configData = await fetchConfig(serverIPs[0], username);
-      console.log('✅ Config từ MongoDB:', serverIPs[0], username);
+      const configData = await fetchConfig(serverIPs, username);
+      console.log('✅ Config từ MongoDB:', { serverIP: serverIPs[0], username, configData });
       setGridConfig(configData);
     } catch (configError) {
       console.warn('⚠️ Không thể load cấu hình từ MongoDB', configError);
@@ -58,8 +66,21 @@ const useTaskData = (serverIPs, activeKhu, username) => {
   const latestKhuRef = useRef(activeKhu);
 
   const loadTaskData = useCallback(async () => {
-    if (!serverIPs || serverIPs.length === 0 || !activeKhu || !username) {
-      setError('Không có IP server, khu vực, hoặc username hợp lệ.');
+    if (!serverIPs || !Array.isArray(serverIPs) || serverIPs.length === 0) {
+      console.warn('Debug: serverIPs không hợp lệ:', serverIPs);
+      setError('Không có IP server hợp lệ.');
+      setLoading(false);
+      return;
+    }
+    if (!activeKhu) {
+      console.warn('Debug: activeKhu không hợp lệ:', activeKhu);
+      setError('Không có khu vực hợp lệ.');
+      setLoading(false);
+      return;
+    }
+    if (!username) {
+      console.warn('Debug: username không hợp lệ:', username);
+      setError('Không có username hợp lệ.');
       setLoading(false);
       return;
     }
@@ -71,8 +92,8 @@ const useTaskData = (serverIPs, activeKhu, username) => {
 
     try {
       if (activeKhu === 'SupplyAndDemand') {
-        const supplyData = await fetchTaskData(serverIPs[0], 'Supply', username);
-        const demandData = await fetchTaskData(serverIPs[0], 'Demand', username);
+        const supplyData = await fetchTaskData(serverIPs, 'Supply', username);
+        const demandData = await fetchTaskData(serverIPs, 'Demand', username);
         if (latestKhuRef.current === khuAtStart) {
           setSupplyTaskData(supplyData);
           setDemandTaskData(demandData);
@@ -80,7 +101,7 @@ const useTaskData = (serverIPs, activeKhu, username) => {
           console.log(`✅ Dữ liệu từ MongoDB (Demand):`, demandData);
         }
       } else {
-        const data = await fetchTaskData(serverIPs[0], activeKhu, username);
+        const data = await fetchTaskData(serverIPs, activeKhu, username);
         if (latestKhuRef.current === khuAtStart) {
           setSupplyTaskData(activeKhu === 'Supply' ? data : []);
           setDemandTaskData(activeKhu === 'Demand' ? data : []);
@@ -135,7 +156,7 @@ const MobileGridDisplay = () => {
     position: { x: 0, y: 0 }
   });
 
-  const effectiveServerIP = serverIPs && serverIPs.length > 0 ? serverIPs[0] : null;
+  const effectiveServerIP = serverIPs && Array.isArray(serverIPs) && serverIPs.length > 0 ? serverIPs[0] : '192.168.1.6:1838';
   const currentKhuConfig = gridConfig && selectedKhu ? gridConfig[selectedKhu + 'Config'] : null;
   const totalCells = currentKhuConfig ? currentKhuConfig.cells : 0;
 
@@ -162,6 +183,11 @@ const MobileGridDisplay = () => {
       console.log('Debug - Bỏ qua handleSendSignalGrid: đang gửi');
       return { success: false, message: 'Đang gửi, vui lòng đợi.' };
     }
+    if (!serverIPs || !Array.isArray(serverIPs) || serverIPs.length < 2) {
+      console.warn('Debug: serverIPs không hợp lệ hoặc thiếu serverIPs[1]:', serverIPs);
+      return { success: false, message: 'Không có IP server hợp lệ cho serverIPs[1].' };
+    }
+
     setIsSending(true);
     setSendResult(null);
     try {
@@ -191,19 +217,19 @@ const MobileGridDisplay = () => {
         taskOrderDetail: [{ taskPath: taskPath }]
       };
 
-      const apiUrl = serverIPs.map((ip, index) => {
-        const endpoint = index === 0 ? '/submit-data' : '/ics/out/endTask';
-        return `http://${ip}${endpoint}`;
-      });
+      // Sử dụng serverIPs[1] và endpoint /ics/taskOrder/addTask
+      const targetServer = {
+        serverIP: serverIPs[1], // 192.168.1.6:7000
+        endpoint: '/ics/taskOrder/addTask' // Từ defaultServers[1].endpoint
+      };
 
       console.log('🔍 Debug - handleSendSignalGrid API:', {
-        apiUrls: apiUrl,
-        endpoints: serverIPs.map((_, index) => (index === 0 ? '/submit-data' : '/ics/out/endTask')),
+        apiUrl: `http://${targetServer.serverIP}${targetServer.endpoint}`,
         payload: JSON.stringify(payload)
       });
 
       const result = await sendTaskSignal(
-        serverIPs,
+        [targetServer.serverIP], // Chỉ gửi đến serverIPs[1]
         payload,
         cellNumber,
         khu,
@@ -572,7 +598,7 @@ const MobileGridDisplay = () => {
               onHide={handleContextMenuHide}
               cellData={contextMenu.cellData}
               currentKhu={selectedKhu}
-              serverIPs={serverIPs}
+              serverIPs={serverIPs && Array.isArray(serverIPs) && serverIPs.length > 0 ? [serverIPs[1]] : ['192.168.1.6:7000']}
               onUpdateSuccess={loadTaskData}
               position={contextMenu.position}
             />

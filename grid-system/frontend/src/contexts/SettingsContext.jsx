@@ -5,6 +5,8 @@ import { saveUserConfig, loadUserConfig, sendLogToServer } from '../services/set
 import { fetchConfig, saveConfig } from '../services/config';
 
 const SettingsContext = createContext();
+const API_ICS_URL = import.meta.env.VITE_ICS_API_URL;
+const API_URL = import.meta.env.VITE_API_URL;
 
 const defaultSupplyAndDemandConfig = { rows: 1, columns: 1, cells: 1 };
 const defaultSupplyConfig = { rows: 1, columns: 1, cells: 1 };
@@ -27,11 +29,11 @@ const getInitialConfig = () => {
   }
 
   const defaultConfig = {
-    serverIPs: ['192.168.1.7:1838'], // Giá trị mặc định từ backend
+    serverIPs: [API_URL, API_ICS_URL], // Giá trị mặc định từ log
     SupplyAndDemandConfig: defaultSupplyAndDemandConfig,
     SupplyConfig: defaultSupplyConfig,
     DemandConfig: defaultDemandConfig,
-    username: ['user_ae3']
+    username: ['admin']
   };
 
   return {
@@ -120,8 +122,8 @@ export const SettingsProvider = ({ children }) => {
   };
 
   const handleReset = () => {
-    setServerIPs(['192.168.1.7:1838']);
-    setInputServerIP('192.168.1.7:1838');
+    setServerIPs(['192.168.1.6:1838', '192.168.1.6:7000']);
+    setInputServerIP('192.168.1.6:1838,192.168.1.6:7000');
     setInputUsername('user_ae3');
     setSupplyAndDemandConfig(defaultSupplyAndDemandConfig);
     setSupplyConfig(defaultSupplyConfig);

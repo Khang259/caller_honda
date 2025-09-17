@@ -1,5 +1,6 @@
-﻿export const defaultServers = [
-    { serverIP: '127.0.0.1:7000', endpoint: '/submit-data' },
+﻿//services/api.js
+export const defaultServers = [
+    // { serverIP: '127.0.0.1:7000', endpoint: '/submit-data' },
     { serverIP: '127.0.0.1:7000', endpoint: '/ics/taskOrder/addTask' },
     { serverIP: '127.0.0.1:7000', endpoint: '/ics/out/endTask ' }
 ];

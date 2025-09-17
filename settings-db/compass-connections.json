@@ -1,0 +1,27 @@
+{
+  "type": "Compass Connections",
+  "version": {
+    "$numberInt": "1"
+  },
+  "connections": [
+    {
+      "id": "f2d9b40d-aae9-4675-9ee6-298e7daed134",
+      "lastUsed": {
+        "$date": {
+          "$numberLong": "1758078785131"
+        }
+      },
+      "favorite": {
+        "name": "Honda_F1",
+        "color": "color6"
+      },
+      "savedConnectionType": "recent",
+      "connectionOptions": {
+        "connectionString": "mongodb://localhost:27017/",
+        "oidc": {
+          "serializedState": "eyJvaWRjUGx1Z2luU3RhdGVWZXJzaW9uIjoxLCJzdGF0ZSI6W119"
+        }
+      }
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 
 const AuthContext = createContext();
+const API_URL = import.meta.env.VITE_API_URL;
 
 export const useAuth = () => useContext(AuthContext);
 
@@ -31,7 +32,7 @@ export const AuthProvider = ({ children }) => {
     const login = async (username, password) => {
         try {
             console.log('Debug: Gửi yêu cầu đăng nhập:', { username, password });
-            const response = await axios.post('http://192.168.1.7:1838/login', { username, password });
+            const response = await axios.post(`${API_URL}/login`, { username, password });
             const { username: user, role, config } = response.data.data;
             console.log('Debug: Nhận response từ API:', response.data);
             console.log('Debug: Config nhận được:', config);

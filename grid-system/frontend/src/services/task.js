@@ -2,6 +2,8 @@ import { sendData, defaultServers } from './api';
 import { format } from 'date-fns';
 import { formatCellLabel } from '../utils/format';
 
+const SERVER_URL = import.meta.env.VITE_API_URL;
+
 export const sendTaskSignal = async (
   serverIPs,
   taskData,
@@ -17,7 +19,8 @@ export const sendTaskSignal = async (
   console.log('🔍 Debug - sendTaskSignal - jsonData:', JSON.stringify(jsonData));
 
   // Lấy orderCount
-  const response = await fetch(`http://${serverIPs[0]}/getOrderCount`);
+  // const response = await fetch(`http://${serverIPs[0]}/getOrderCount`);
+  const response = await fetch(`http://${SERVER_URL}/getOrderCount`);
   console.log('🔍 Debug - sendTaskSignal - Response từ getOrderCount:', response);
 
   if (!response.ok) {
