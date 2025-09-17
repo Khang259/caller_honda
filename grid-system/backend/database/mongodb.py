@@ -1,3 +1,4 @@
+# backend/database/mongodb.py
 from pymongo import MongoClient
 from typing import Dict, Any, List
 import logging
@@ -6,22 +7,28 @@ from bson import ObjectId
 logger = logging.getLogger(__name__)
 
 class MongoDBClient:
-    def __init__(self, url: str, db_name: str):
-        self.client = MongoClient(url)
-        self.db = self.client[db_name]
-        self.db.grid_history.create_index("orderId")
-        self.db.grid_history.create_index("cell")
-        self.db.task_path_supply.create_index("cell")
-        self.db.task_path_supply_demand.create_index("cell")
-        self.db.task_path_demand.create_index("cell")
-        self.db.task_path_supply_ae3.create_index("cell")
-        self.db.task_path_supply_ae4.create_index("cell")
-        self.db.task_path_demand_ae3.create_index("cell")
-        self.db.task_path_demand_ae4.create_index("cell")
-        self.db.task_path_supply_main_ovh.create_index("cell")
-        self.db.task_path_demand_main_ovh.create_index("cell")
-        self.db.server_to_client_requests.create_index("timestamp")
-        self.db.config.create_index("username")
+    def __init__(self, url: str = "mongodb://localhost:27017", db_name: str = "your_database"):
+        try:
+            self.client = MongoClient(url)
+            self.db = self.client[db_name]
+            logger.info(f"Debug: Kết nối MongoDB thành công tại {url}, database: {db_name}")
+            # Tạo các index
+            self.db.grid_history.create_index("orderId")
+            self.db.grid_history.create_index("cell")
+            self.db.task_path_supply.create_index("cell")
+            self.db.task_path_supply_demand.create_index("cell")
+            self.db.task_path_demand.create_index("cell")
+            self.db.task_path_supply_ae3.create_index("cell")
+            self.db.task_path_supply_ae4.create_index("cell")
+            self.db.task_path_demand_ae3.create_index("cell")
+            self.db.task_path_demand_ae4.create_index("cell")
+            self.db.task_path_supply_main_ovh.create_index("cell")
+            self.db.task_path_demand_main_ovh.create_index("cell")
+            self.db.server_to_client_requests.create_index("timestamp")
+            self.db.config.create_index("username")
+        except Exception as e:
+            logger.error(f"Debug: Lỗi kết nối MongoDB: {e}")
+            raise
 
     def convert_objectid_to_str(self, data: Any) -> Any:
         """Chuyển ObjectId thành chuỗi trong dữ liệu."""
@@ -49,6 +56,7 @@ class MongoDBClient:
         """Tìm một document theo query."""
         try:
             result = self.get_collection(collection_name).find_one(query)
+            logger.info(f"Debug: Truy vấn find_one trong {collection_name} với query={query}: {result}")
             return self.convert_objectid_to_str(result) if result else None
         except Exception as e:
             logger.error(f"Lỗi khi tìm document trong {collection_name} với query {query}: {e}")

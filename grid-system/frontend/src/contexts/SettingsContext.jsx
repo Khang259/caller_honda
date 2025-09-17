@@ -1,5 +1,6 @@
 ﻿// src/contexts/SettingsContext.jsx
 import React, { useState, useEffect, createContext, useContext } from 'react';
+import { useAuth } from './AuthContext';
 import { saveUserConfig, loadUserConfig, sendLogToServer } from '../services/settings';
 import { fetchConfig, saveConfig } from '../services/config';
 
@@ -10,25 +11,49 @@ const defaultSupplyConfig = { rows: 1, columns: 1, cells: 1 };
 const defaultDemandConfig = { rows: 1, columns: 1, cells: 1 };
 
 const getInitialConfig = () => {
-  const savedConfig = JSON.parse(localStorage.getItem('userConfig') || '{}');
+  const savedConfigRaw = localStorage.getItem('userConfig');
+  let savedConfig = {};
+
+  if (savedConfigRaw) {
+    try {
+      savedConfig = JSON.parse(savedConfigRaw);
+      console.log('Debug: Parsed userConfig từ localStorage:', savedConfig);
+    } catch (error) {
+      console.error('Debug: Lỗi parse userConfig từ localStorage:', error);
+      savedConfig = {};
+    }
+  } else {
+    console.log('Debug: Không tìm thấy userConfig trong localStorage, sử dụng mặc định');
+  }
+
+  const defaultConfig = {
+    serverIPs: ['192.168.1.7:1838'], // Giá trị mặc định từ backend
+    SupplyAndDemandConfig: defaultSupplyAndDemandConfig,
+    SupplyConfig: defaultSupplyConfig,
+    DemandConfig: defaultDemandConfig,
+    username: ['user_ae3']
+  };
+
   return {
     serverIPs: savedConfig.serverIPs && Array.isArray(savedConfig.serverIPs) && savedConfig.serverIPs.length > 0
       ? savedConfig.serverIPs.filter(ip => ip && typeof ip === 'string')
-      : ['127.0.0.1:8000'],
+      : defaultConfig.serverIPs,
     SupplyAndDemandConfig: savedConfig.SupplyAndDemandConfig || defaultSupplyAndDemandConfig,
     SupplyConfig: savedConfig.SupplyConfig || defaultSupplyConfig,
     DemandConfig: savedConfig.DemandConfig || defaultDemandConfig,
     username: savedConfig.username && Array.isArray(savedConfig.username) && savedConfig.username.length > 0
       ? savedConfig.username.filter(username => username && typeof username === 'string')
-      : ['admin']
+      : defaultConfig.username
   };
 };
 
 export const SettingsProvider = ({ children }) => {
+  const authContext = useAuth();
+  const authConfig = authContext ? authContext.config : null;
   const initialConfig = getInitialConfig();
-  const [serverIPs, setServerIPs] = useState(initialConfig.serverIPs);
+  const [serverIPs, setServerIPs] = useState(authConfig?.serverIPs || initialConfig.serverIPs);
   const [inputServerIP, setInputServerIP] = useState(serverIPs.join(', '));
-  const [inputUsername, setInputUsername] = useState(serverIPs.join(', '));
+  const [inputUsername, setInputUsername] = useState(initialConfig.username.join(', '));
   const [SupplyAndDemandConfig, setSupplyAndDemandConfig] = useState(initialConfig.SupplyAndDemandConfig);
   const [SupplyConfig, setSupplyConfig] = useState(initialConfig.SupplyConfig);
   const [DemandConfig, setDemandConfig] = useState(initialConfig.DemandConfig);
@@ -37,8 +62,15 @@ export const SettingsProvider = ({ children }) => {
   const [alertMessage, setAlertMessage] = useState('');
 
   useEffect(() => {
-    console.log('serverIPs initialized:', serverIPs);
-  }, [serverIPs]);
+    console.log('Debug: serverIPs initialized:', serverIPs);
+    if (authConfig?.serverIPs) {
+      setServerIPs(authConfig.serverIPs);
+      setInputServerIP(authConfig.serverIPs.join(', '));
+      console.log('Debug: Cập nhật serverIPs từ AuthContext:', authConfig.serverIPs);
+    } else {
+      console.log('Debug: Không có authConfig, sử dụng serverIPs từ initialConfig:', serverIPs);
+    }
+  }, [authConfig]);
 
   const switchKhu = async (khu) => {
     setActiveKhu(khu);
@@ -49,10 +81,9 @@ export const SettingsProvider = ({ children }) => {
   const handleSaveConfig = async () => {
     const newServerIPs = inputServerIP.split(',').map(ip => ip.trim()).filter(ip => ip);
     const newUsername = inputUsername.split(',').map(username => username.trim()).filter(username => username);
-    if (newServerIPs.length === 0 && newUsername.length === 0) {
+    if (newServerIPs.length === 0 || newUsername.length === 0) {
       setShowAlert(true);
-      setAlertMessage('Vui lòng nhập ít nhất một địa chỉ IP!');
-      setAlertMessage('Vui lòng nhập ít nhất một tên người dùng!');
+      setAlertMessage('Vui lòng nhập ít nhất một địa chỉ IP và một tên người dùng!');
       return;
     }
 
@@ -65,18 +96,16 @@ export const SettingsProvider = ({ children }) => {
         DemandConfig
       };
       
-      // Lưu vào localStorage
       await saveUserConfig(newConfig);
       setServerIPs(newServerIPs);
       
-      // Lưu vào MongoDB nếu có server IP
       if (newServerIPs.length > 0 && newUsername.length > 0) {
         try {
-          await saveConfig(newServerIPs[0], newConfig, newUsername[0]);
+          await saveConfig(newServerIPs, newConfig, newUsername[0]);
           setShowAlert(true);
           setAlertMessage('Đã lưu cấu hình thành công vào MongoDB!');
         } catch (mongoError) {
-          console.warn('Không thể lưu vào MongoDB:', mongoError);
+          console.warn('Debug: Không thể lưu vào MongoDB:', mongoError);
           setShowAlert(true);
           setAlertMessage(`Cảnh báo: Không thể lưu cấu hình vào MongoDB. Lỗi: ${mongoError.message}`);
         }
@@ -91,9 +120,9 @@ export const SettingsProvider = ({ children }) => {
   };
 
   const handleReset = () => {
-    setServerIPs(['127.0.0.1:8000']);
-    setInputServerIP('127.0.0.1:8000');
-    setInputUsername('None');
+    setServerIPs(['192.168.1.7:1838']);
+    setInputServerIP('192.168.1.7:1838');
+    setInputUsername('user_ae3');
     setSupplyAndDemandConfig(defaultSupplyAndDemandConfig);
     setSupplyConfig(defaultSupplyConfig);
     setDemandConfig(defaultDemandConfig);
@@ -109,9 +138,7 @@ export const SettingsProvider = ({ children }) => {
     const [config, setConfig] = configMap[khu];
     const newConfig = { ...config, [field]: newValue };
     
-    // Chỉ cập nhật cells khi thay đổi rows/columns và cells chưa được set thủ công
     if (field === 'rows' || field === 'columns') {
-      // Nếu cells chưa được set thủ công (bằng với rows * columns), thì tự động cập nhật
       if (config.cells === config.rows * config.columns) {
         newConfig.cells = newConfig.rows * newConfig.columns;
       }
@@ -141,7 +168,6 @@ export const SettingsProvider = ({ children }) => {
     alertMessage,
     setAlertMessage,
     handleConfigChange
-    
   };
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

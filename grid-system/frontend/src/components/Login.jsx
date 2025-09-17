@@ -11,19 +11,25 @@ const Login = () => {
     const { login } = useAuth();
     const navigate = useNavigate();
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
 
+        console.log('Debug: Dữ liệu đăng nhập:', { username, password });
+
         if (!username || !password) {
-            return setError('Vui lòng nhập tên đăng nhập và mật khẩu');
+            setError('Vui lòng nhập tên đăng nhập và mật khẩu');
+            console.log('Debug: Lỗi - Thiếu username hoặc password');
+            return;
         }
 
-        const success = login(username, password);
+        const success = await login(username, password);
         if (success) {
+            console.log('Debug: Đăng nhập thành công, chuyển hướng đến /');
             navigate('/');
         } else {
             setError('Tên đăng nhập hoặc mật khẩu không đúng');
+            console.log('Debug: Đăng nhập thất bại');
         }
     };
 

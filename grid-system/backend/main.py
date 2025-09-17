@@ -13,7 +13,7 @@ from api.models import ConfigRequest, TaskData, LoginRequest
 from typing import List, Optional, Dict, Any
 import asyncio
 from uvicorn import Config, Server
-import sys
+from services.auth_service import AuthService
 
 # Thiết lập logging
 logging.basicConfig(level=logging.INFO)
@@ -69,6 +69,7 @@ counter_service = CounterService(mongo_client)
 data_service = DataService(mongo_client)
 websocket_manager = WebSocketManager()
 scheduler = SchedulerService(data_service, websocket_manager, mongo_client)
+auth_service = AuthService(data_service)
 
 # ===== CHUYỂN ROUTES TỪ app.py VÀ routes.py VÀO ĐÂY =====
 
@@ -245,26 +246,23 @@ async def save_config(request: ConfigRequest):
 @app.post("/login")
 async def login(request: LoginRequest):
     try:
-        logger.info(f"Debug: Nhận yêu cầu đăng nhập cho username={request.username}")
-        user = data_service.mongo.find_one("users", {
-            "username": request.username,
-            "password": request.password  # Lưu ý: Nên mã hóa password trong thực tế
-        })
-        if user:
-            logger.info(f"✅ Đăng nhập thành công cho username={request.username}")
-            return {
-                "status": "success",
-                "data": {
-                    "username": user["username"],
-                    "role": user["role"]
-                }
+        user, config = auth_service.login(request.username, request.password)
+        logger.info(f"✅ Đăng nhập thành công cho username={request.username}")
+        response = {
+            "status": "success",
+            "data": {
+                "username": user["username"],
+                "role": user["role"],
             }
-        else:
-            logger.warning(f"❌ Đăng nhập thất bại cho username={request.username}")
-            raise HTTPException(status_code=401, detail="Tên đăng nhập hoặc mật khẩu không đúng")
+        }
+        logger.info(f"Debug: Response trả về: {response}")
+        return response
+    except HTTPException as e:
+        logger.warning(f"❌ Đăng nhập thất bại cho username={request.username}: {e.detail}")
+        raise e
     except Exception as e:
         logger.error(f"❌ Lỗi khi đăng nhập: {e}")
-        raise HTTPException(status_code=500, detail=str(e))  
+        raise HTTPException(status_code=500, detail="Lỗi hệ thống")
 
 # ===== GRID ENDPOINTS (từ routes.py) - QUAN TRỌNG! =====
 @app.get("/api/grid/options/{khu}")

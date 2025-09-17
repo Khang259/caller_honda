@@ -33,8 +33,8 @@ const useGridConfig = (serverIPs, username) => {
     setIsConfigLoading(true);
     try {
       const configData = await fetchConfig(serverIPs[0], username);
+      console.log('✅ Config từ MongoDB:', serverIPs[0], username);
       setGridConfig(configData);
-      console.log('✅ Config từ MongoDB:', configData);
     } catch (configError) {
       console.warn('⚠️ Không thể load cấu hình từ MongoDB', configError);
       setError(`Không thể tải cấu hình: ${configError.message}`);

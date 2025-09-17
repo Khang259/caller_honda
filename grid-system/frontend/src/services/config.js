@@ -1,16 +1,16 @@
 // src/services/config.js
-// Service để quản lý cấu hình từ MongoDB
-
-export const fetchConfig = async (serverIP, username) => {
-  if (!serverIP) {
+export const fetchConfig = async (serverIPs, username) => {
+  if (!serverIPs || !Array.isArray(serverIPs) || serverIPs.length === 0) {
     throw new Error('Không có IP server hợp lệ.');
   }
   if (!username) {
     throw new Error('Không có username hợp lệ.');
   }
 
+  const serverIP = serverIPs[0]; // Chọn IP đầu tiên
   const url = `http://${serverIP}/config?username=${encodeURIComponent(username)}`;
   try {
+    console.log('Debug: fetchConfig URL:', url);
     const response = await fetch(url, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
@@ -34,18 +34,21 @@ export const fetchConfig = async (serverIP, username) => {
   }
 };
 
-export const saveConfig = async (serverIP, configData) => {
-  console.log('Debug serverIP:', serverIP);
-  console.log('Debug configData:', configData);
-  if (!serverIP) {
+export const saveConfig = async (serverIPs, configData, username) => {
+  if (!serverIPs || !Array.isArray(serverIPs) || serverIPs.length === 0) {
     throw new Error('Không có IP server hợp lệ.');
   }
+
+  const serverIP = serverIPs[0]; // Chọn IP đầu tiên
+  console.log('Debug serverIP:', serverIP);
+  console.log('Debug configData:', configData);
+  console.log('Debug username:', username);
 
   const url = `http://${serverIP}/config`;
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({configData})
+    body: JSON.stringify({ configData, username }) // Thêm username vào body
   });
 
   if (!response.ok) {
@@ -59,4 +62,4 @@ export const saveConfig = async (serverIP, configData) => {
   }
 
   return result.data;
-}; 
+};

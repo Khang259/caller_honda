@@ -1,75 +1,77 @@
-﻿import React, { createContext, useState, useContext, useEffect } from 'react';
+﻿// src/contexts/AuthContext.jsx
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import axios from 'axios';
 
-// AuthContext được tạo ra để chia sẻ dữ liệu xác thực (auth) giữa các component trong ứng dụng
 const AuthContext = createContext();
 
-//useAuth() là một hook giúp các component dễ dàng truy cập dữ liệu từ AuthContext.
 export const useAuth = () => useContext(AuthContext);
-
-
-//    currentUser: Lưu trữ thông tin người dùng hiện tại(hoặc null nếu chưa đăng nhập).
-//    loading: Cho biết dữ liệu xác thực đang được tải từ localStorage.
 
 export const AuthProvider = ({ children }) => {
     const [currentUser, setCurrentUser] = useState(null);
+    const [config, setConfig] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Khởi tạo từ localStorage khi ứng dụng bắt đầu
     useEffect(() => {
         const storedUser = localStorage.getItem('currentUser');
-        if (storedUser) {
+        const storedConfig = localStorage.getItem('userConfig');
+        if (storedUser && storedConfig) {
+            console.log('Debug: Khôi phục currentUser từ localStorage:', JSON.parse(storedUser));
+            console.log('Debug: Khôi phục config từ localStorage:', storedConfig);
             setCurrentUser(JSON.parse(storedUser));
+            try {
+                setConfig(JSON.parse(storedConfig));
+            } catch (error) {
+                console.error('Debug: Lỗi parse userConfig từ localStorage:', error);
+                setConfig(null);
+            }
         }
         setLoading(false);
     }, []);
 
-    // Danh sách người dùng mẫu
-    const users = [
-        { username: 'admin', password: 'admin123', role: 'admin' },
-        { username: 'user_AE', password: 'userae', role: 'user' },
-        { username: 'user_DCC', password: 'userdcc', role: 'user' },
-        { username: 'user_ae3', password: 'userae3', role: 'user_ae3' },
-        { username: 'user_ae4', password: 'userae4', role: 'user_ae4' },
-        { username: 'user_main_ovh', password: 'usermainovh', role: 'user_main_ovh' }
-    ];
+    const login = async (username, password) => {
+        try {
+            console.log('Debug: Gửi yêu cầu đăng nhập:', { username, password });
+            const response = await axios.post('http://192.168.1.7:1838/login', { username, password });
+            const { username: user, role, config } = response.data.data;
+            console.log('Debug: Nhận response từ API:', response.data);
+            console.log('Debug: Config nhận được:', config);
 
-    // Đăng nhập
-    const login = (username, password) => {
-        const user = users.find(u => u.username === username && u.password === password);
-        if (user) {
-            const userInfo = { username: user.username, role: user.role };
-            setCurrentUser(userInfo);
-            localStorage.setItem('currentUser', JSON.stringify(userInfo));
+            // Kiểm tra config trước khi lưu
+            if (!config) {
+                console.warn('Debug: Config từ API là null hoặc undefined');
+                setConfig(null);
+            } else {
+                setConfig(config);
+            }
+
+            setCurrentUser({ username: user, role });
+            localStorage.setItem('currentUser', JSON.stringify({ username: user, role }));
+            localStorage.setItem('userConfig', JSON.stringify(config || {}));
+            console.log('Debug: Đã lưu userConfig vào localStorage:', config || {});
             return true;
+        } catch (error) {
+            const errorMessage = error.response?.data?.detail || error.message;
+            console.error('Debug: Lỗi đăng nhập:', errorMessage);
+            return false;
         }
-        return false;
     };
 
-    // Đăng xuất
     const logout = () => {
+        console.log('Debug: Đăng xuất, xóa currentUser và config');
         setCurrentUser(null);
+        setConfig(null);
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('userConfig');
     };
 
-    // Kiểm tra quyền
-    const isAdmin = () => {
-        return currentUser && currentUser.role === 'admin';
-    };
-
-    const isUserAE3 = () => {
-        return currentUser && currentUser.role === 'user_ae3';
-    };
-
-    const isUserAE4 = () => {
-        return currentUser && currentUser.role === 'user_ae4';
-    };
-
-    const isUserMainOvh = () => {
-        return currentUser && currentUser.role === 'user_main_ovh';
-    };
+    const isAdmin = () => currentUser?.role === 'admin';
+    const isUserAE3 = () => currentUser?.role === 'user_ae3';
+    const isUserAE4 = () => currentUser?.role === 'user_ae4';
+    const isUserMainOvh = () => currentUser?.role === 'user_main_ovh';
 
     const value = {
         currentUser,
+        config,
         login,
         logout,
         isAdmin,
@@ -79,7 +81,6 @@ export const AuthProvider = ({ children }) => {
         loading
     };
 
-    //Nếu loading là false, component con(children) mới được render.
     return (
         <AuthContext.Provider value={value}>
             {!loading && children}
